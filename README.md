@@ -9,7 +9,8 @@ Cette version livre l'étape 1 du cahier des charges:
 - Macro `game.pfgMaintenance.open();`
 - Selection des Trainers possedes par le joueur, ou de tous les Trainers pour un MJ.
 - Calcul des Points Rentability / PR avec stockage interne en quarts de PR (`PRQ`).
-- Choix manuel du skill PR et du skill Petit Travail parmi tous les skills Trainer détectés.
+- Choix manuel du skill PR parmi `General Education`, `Medicine Education`, `Occult Education`, `Pokémon Education`, `Technology Education` et `Survival`.
+- Choix du skill Petit Travail parmi tous les skills Trainer détectés.
 - Bonus PR configurables: bonus général, bonus Fabrication, bonus Récolte, bonus Petit Travail et bonus Agriculture.
 - Les bonus PR spécifiques sont dépensés seulement par leur activité, avant les PR généraux.
 - Lecture PTR des skills via `system.skills.<skill>.value.total` et `modifier.total`, donc avec les bonus/malus de fiche.
@@ -29,6 +30,8 @@ Cette version livre l'étape 1 du cahier des charges:
 - Confirmation du Pokémon possédé par sélection d'un Actor Pokémon détecté ou par nom manuel.
 - Validation des prérequis spéciaux: confirmation `Field of Study: Paleontology` pour Fossil Research, confirmation ou dépôt de `Shuckle's Berry Juice` pour Rare Candy, et 2 Oricorio pour Nectar Dancer.
 - Application de résultat Récolte: ajout d'item depuis UUID, lancement de RollTable, ou information chat selon le type.
+- Récolte Pokémon répétable en une seule confirmation, avec coût PR multiplié et résultats RollTable conservés dans l'historique.
+- Bouton `Nouvel entretien` après finalisation pour repartir sur la date Simple Calendar actuelle.
 - Activité complète `Fabrication` avec journal de fabrication, drop de l'objet final, type, quantité, coût argent, ingrédients réservés et confirmation finale.
 - La Fabrication réserve les ingrédients au drop et ne retire argent/ingrédients qu'au moment de la confirmation.
 - Types Fabrication actifs: `Objet normal` à 1 PRQ par objet et `Armure` à 4 PRQ par armure. Le type `Arme` reste visible mais désactivé en attendant les règles détaillées.
@@ -111,7 +114,10 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Cliquer `X` sur un ingrédient réservé: il doit disparaître de la liste sans modifier l'inventaire.
 - Confirmer une Fabrication avec argent et ingrédients suffisants: argent et ingrédients sont retirés, l'objet final est ajouté et le résumé chat est posté.
 - Tenter une Fabrication avec argent, PR ou ingrédients insuffisants: la confirmation doit être bloquée.
-- Dans l'écran PR, vérifier que la liste de skills contient aussi les skills non-Education comme `Acrobatics`, `Charm`, `Combat`, `Command`, `Focus`, `Guile`, `Intimidate`, `Intuition`, `Perception` et `Stealth`.
+- Dans l'écran PR, vérifier que la liste de skills contient seulement `General Education`, `Medicine Education`, `Occult Education`, `Pokémon Education`, `Technology Education` et `Survival`.
+- Dans `Petit Travail`, vérifier que la liste de skills contient aussi les skills non-Education comme `Acrobatics`, `Charm`, `Combat`, `Command`, `Focus`, `Guile`, `Intimidate`, `Intuition`, `Perception` et `Stealth`.
+- Tester `Pickup` avec `Nombre de récoltes = 4`: le coût doit être `16 PR`, quatre tirages doivent partir dans le chat et les quatre résultats doivent apparaître dans l'historique.
+- Terminer un entretien, changer la date Simple Calendar, cliquer `Nouvel entretien`, puis vérifier que l'app repart sur une fiche d'entretien vide pour la nouvelle date.
 - Entrer un `Bonus PR` général et vérifier qu'il peut servir à Petit Travail, Récolte ou Fabrication.
 - Entrer un `Bonus PR uniquement Petit Travail`, lancer un Petit Travail, puis vérifier que ce bonus ne permet pas de financer une Fabrication.
 - Entrer un `Bonus PR uniquement Fabrication`, confirmer une Fabrication, puis vérifier que ce bonus ne permet pas de financer Petit Travail ou Récolte.

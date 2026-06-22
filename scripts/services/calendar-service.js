@@ -117,19 +117,22 @@ function readSimpleCalendar() {
     const week = getWeekIndex(api, timestamp, currentDate, timestampDate);
     const year = currentDate?.year ?? timestampDate?.year ?? display?.year ?? "year";
     const month = currentDate?.month ?? timestampDate?.month ?? display?.month ?? "month";
+    const day = currentDate?.day ?? timestampDate?.day ?? display?.day ?? "day";
     const calendarId = currentCalendar?.id ?? "active";
+    const dateKey = dateLabel || [year, month, day].filter((part) => part !== undefined && part !== null).join("-");
 
     return {
       source: "simple-calendar-reborn",
       simpleCalendarActive: true,
       simpleCalendarStatus: status,
-      weekKey: slugify(`${calendarId}-${year}-${month}-week-${week}`),
+      weekKey: slugify(`${calendarId}-${dateKey}`),
       calendarLabel,
       dateLabel,
       timeLabel,
       rawDate: currentDate ?? null,
       displayData: display ?? timestampDate?.display ?? null,
       timestamp: Number.isFinite(Number(timestamp)) ? Number(timestamp) : null,
+      weekIndex: week,
       eventName: "",
       eventDescription: ""
     };

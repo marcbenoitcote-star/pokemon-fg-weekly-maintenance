@@ -136,7 +136,9 @@ export function calculatePR(actor, mode = "work", options = {}) {
   const level = getTrainerLevel(actor, options);
   const power = getPower(actor, options);
   const bestSkill = getBestSkill(actor, mode);
-  const selectedSkill = options.skillKey ? getSkillRank(actor, options.skillKey) : bestSkill;
+  const skillKeys = PR_SKILL_KEYS[mode] ?? PR_SKILL_KEYS.work;
+  const selectedSkillKey = skillKeys.includes(options.skillKey) ? options.skillKey : bestSkill.key;
+  const selectedSkill = selectedSkillKey ? getSkillRank(actor, selectedSkillKey) : bestSkill;
   const levelPR = Math.max(1, Math.floor(level.value / 10));
   const powerPR = Math.floor(power.value / 2);
   const skillPR = selectedSkill.value;

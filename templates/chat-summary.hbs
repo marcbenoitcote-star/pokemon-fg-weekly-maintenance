@@ -18,7 +18,16 @@
           <li>{{title}} - {{summaryLine}}, coût {{costLabel}}, {{moneyCostLabel}}</li>
         {{else}}
         {{#if isHarvest}}
-          <li>{{title}} - {{summaryLine}}, coût {{costLabel}}</li>
+          <li>
+            {{title}} - {{summaryLine}}, coût {{costLabel}}
+            {{#if hasResultEntries}}
+              <ol>
+                {{#each resultEntries}}
+                  <li>{{label}}</li>
+                {{/each}}
+              </ol>
+            {{/if}}
+          </li>
         {{else}}
           <li>{{title}} - {{totalGain}}₽ gagnés, coût {{costLabel}}</li>
         {{/if}}
@@ -64,9 +73,18 @@
     {{#if activity.isHarvest}}
       <h3>Récolte Pokémon - {{actor.name}}</h3>
       <p><strong>Récolte:</strong> {{activity.harvestLabel}} ({{activity.harvestCategory}})</p>
+      <p><strong>Nombre:</strong> {{activity.count}}</p>
       <p><strong>{{#if activity.usesPokemon}}Pokémon{{else}}Prérequis{{/if}}:</strong> {{activity.pokemonNames}}</p>
       <p><strong>Cout:</strong> {{activity.costLabel}}</p>
       <p><strong>Résultat:</strong> {{activity.resultLabel}} - {{activity.resultTypeLabel}}</p>
+      {{#if activity.hasResultEntries}}
+        <p><strong>Résultats obtenus:</strong></p>
+        <ol>
+          {{#each activity.resultEntries}}
+            <li>{{label}}</li>
+          {{/each}}
+        </ol>
+      {{/if}}
       {{#if activity.resultUuid}}
         <p><strong>UUID:</strong> {{activity.resultUuid}}</p>
       {{/if}}

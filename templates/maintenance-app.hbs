@@ -404,6 +404,11 @@
         </select>
       </label>
 
+      <label>
+        Nombre de récoltes
+        <input type="number" name="harvestCount" min="1" max="{{harvest.maxCount}}" step="1" value="{{harvest.count}}" {{#if harvest.locked}}disabled{{/if}}>
+      </label>
+
       <ul class="pfg-harvest-list">
         {{#each harvest.options}}
           <li class="{{#if selected}}selected{{/if}}">
@@ -422,6 +427,14 @@
           <div>
             <dt>Coût</dt>
             <dd>{{harvest.costLabel}}</dd>
+          </div>
+          <div>
+            <dt>Coût unitaire</dt>
+            <dd>{{harvest.unitCostLabel}}</dd>
+          </div>
+          <div>
+            <dt>Nombre</dt>
+            <dd>{{harvest.count}}</dd>
           </div>
           <div>
             <dt>Résultat</dt>
@@ -669,6 +682,10 @@
               <dd>{{currentActivity.harvestLabel}} <small>{{currentActivity.harvestCategory}}</small></dd>
             </div>
             <div>
+              <dt>Nombre</dt>
+              <dd>{{currentActivity.count}}</dd>
+            </div>
+            <div>
               <dt>{{#if currentActivity.usesPokemon}}Pokémon{{else}}Prérequis{{/if}}</dt>
               <dd>{{currentActivity.pokemonNames}}</dd>
             </div>
@@ -687,6 +704,14 @@
               </div>
             {{/if}}
           </dl>
+          {{#if currentActivity.hasResultEntries}}
+            <p><strong>Résultats obtenus:</strong></p>
+            <ol class="pfg-rolls">
+              {{#each currentActivity.resultEntries}}
+                <li>{{label}}</li>
+              {{/each}}
+            </ol>
+          {{/if}}
           <p class="pfg-success">{{currentActivity.resultStatus}}</p>
         {{else}}
           <dl class="pfg-dl">
@@ -741,6 +766,13 @@
               {{#if isHarvest}}
                 <strong>#{{number}} {{title}}</strong> - {{summaryLine}} - {{costLabel}}
                 <small>{{resultStatus}}</small>
+                {{#if hasResultEntries}}
+                  <ol>
+                    {{#each resultEntries}}
+                      <li>{{label}}</li>
+                    {{/each}}
+                  </ol>
+                {{/if}}
               {{else}}
                 <strong>#{{number}} {{title}}</strong> - {{description}} - {{costLabel}} - {{totalGain}}₽
                 {{#if applied}}<small>Gains appliqués</small>{{else}}<small>Gains non appliqués</small>{{/if}}
@@ -789,10 +821,17 @@
           </button>
         {{/if}}
       {{/if}}
-      <button type="button" data-action="finish" {{#unless hasActivityHistory}}disabled{{/unless}}>
-        <i class="fas fa-check"></i>
-        Terminer l'entretien
-      </button>
+      {{#if finalized}}
+        <button type="button" data-action="new-maintenance">
+          <i class="fas fa-rotate-right"></i>
+          Nouvel entretien
+        </button>
+      {{else}}
+        <button type="button" data-action="finish" {{#unless hasActivityHistory}}disabled{{/unless}}>
+          <i class="fas fa-check"></i>
+          Terminer l'entretien
+        </button>
+      {{/if}}
     </footer>
   {{/if}}
 </form>

@@ -111,11 +111,20 @@ export const TRAINER_SKILLS = [
 
 export const MAINTENANCE_SKILL_KEYS = TRAINER_SKILLS.map((skill) => skill.key);
 
+export const PR_MAINTENANCE_SKILL_KEYS = [
+  "generalEd",
+  "medicineEd",
+  "occultEd",
+  "pokemonEd",
+  "techEd",
+  "survival"
+];
+
 export const PR_SKILL_KEYS = {
-  work: MAINTENANCE_SKILL_KEYS,
-  crafting: MAINTENANCE_SKILL_KEYS,
-  harvest: MAINTENANCE_SKILL_KEYS,
-  gardening: MAINTENANCE_SKILL_KEYS
+  work: PR_MAINTENANCE_SKILL_KEYS,
+  crafting: PR_MAINTENANCE_SKILL_KEYS,
+  harvest: PR_MAINTENANCE_SKILL_KEYS,
+  gardening: PR_MAINTENANCE_SKILL_KEYS
 };
 
 export const ACTIVITY_OPTIONS = [

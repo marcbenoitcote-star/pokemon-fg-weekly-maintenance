@@ -10,6 +10,7 @@ import {
   MODULE_ID,
   MODULE_TITLE,
   POKEMON_HARVEST_OPTIONS,
+  PR_MAINTENANCE_SKILL_KEYS,
   SETTINGS,
   TEMPLATES
 } from "../data/constants.js";
@@ -84,6 +85,7 @@ export class PfgMaintenanceApp extends Application {
       },
       harvest: {
         harvestKey: POKEMON_HARVEST_OPTIONS[0]?.key ?? "",
+        count: 1,
         pokemonId: "",
         pokemonName: "",
         secondPokemonName: "",
@@ -118,6 +120,7 @@ export class PfgMaintenanceApp extends Application {
   getData() {
     const actor = this.actor;
     const trainers = getAvailableTrainers();
+    if (actor) this.state.prSkillKey = normalizePrSkill(this.state.prSkillKey, "generalEd");
     const pr = actor ? calculatePR(actor, "work", {
       manualLevel: this.state.manualLevel,
       manualPower: this.state.manualPower,
@@ -176,7 +179,7 @@ export class PfgMaintenanceApp extends Application {
       canApplyCurrentActivity: Boolean(actor && this.state.currentActivity && !this.state.currentActivity.applied && (actor.isOwner || game.user?.isGM)),
       pr,
       prSkillKey: this.state.prSkillKey,
-      prSkillOptions: getSkillOptions(actor, this.state.prSkillKey, MAINTENANCE_SKILL_KEYS),
+      prSkillOptions: getSkillOptions(actor, this.state.prSkillKey, PR_MAINTENANCE_SKILL_KEYS),
       basePRQ,
       basePRLabel: formatPRQ(basePRQ),
       prBonuses: budget.bonuses,
@@ -239,7 +242,7 @@ export class PfgMaintenanceApp extends Application {
       this.updateFieldState(event.currentTarget);
     });
 
-    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], input[name='bonusPR'], input[name='bonusPRCrafting'], input[name='bonusPRHarvest'], input[name='bonusPRWork'], input[name='bonusPRGardening'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], input[name^='craftIngredientQuantity:']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], input[name='bonusPR'], input[name='bonusPRCrafting'], input[name='bonusPRHarvest'], input[name='bonusPRWork'], input[name='bonusPRGardening'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], input[name='harvestCount'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], input[name^='craftIngredientQuantity:']", (event) => {
       this.updateFieldState(event.currentTarget);
       this.render(false);
     });
@@ -382,6 +385,11 @@ export class PfgMaintenanceApp extends Application {
       return;
     }
 
+    if (action === "new-maintenance") {
+      this.startNewMaintenance();
+      return;
+    }
+
     if (action === "finish") {
       await this.finishMaintenance();
       return;
@@ -406,7 +414,7 @@ export class PfgMaintenanceApp extends Application {
     if (data.has("actorId")) this.state.actorId = normalizeActorKey(data.get("actorId")) || this.state.actorId;
     if (data.has("manualLevel")) this.state.manualLevel = stringValue(data.get("manualLevel"));
     if (data.has("manualPower")) this.state.manualPower = stringValue(data.get("manualPower"));
-    if (data.has("prSkillKey")) this.state.prSkillKey = normalizeMaintenanceSkill(data.get("prSkillKey"), this.state.prSkillKey);
+    if (data.has("prSkillKey")) this.state.prSkillKey = normalizePrSkill(data.get("prSkillKey"), this.state.prSkillKey);
     if (data.has("bonusPR")) prBonuses.global = stringValue(data.get("bonusPR"));
     if (data.has("bonusPRCrafting")) prBonuses.crafting = stringValue(data.get("bonusPRCrafting"));
     if (data.has("bonusPRHarvest")) prBonuses.harvest = stringValue(data.get("bonusPRHarvest"));
@@ -421,6 +429,7 @@ export class PfgMaintenanceApp extends Application {
     if (data.has("workSkillKey")) this.state.work.skillKey = normalizeMaintenanceSkill(data.get("workSkillKey"), this.state.work.skillKey);
     if (data.has("workCount")) this.state.work.count = readPositiveCount(data.get("workCount"), this.state.work.count);
     if (data.has("harvestKey")) this.state.harvest.harvestKey = normalizeHarvestKey(data.get("harvestKey"), this.state.harvest.harvestKey);
+    if (data.has("harvestCount")) this.state.harvest.count = readPositiveCount(data.get("harvestCount"), this.state.harvest.count);
     if (data.has("harvestPokemonId")) {
       this.state.harvest.pokemonId = normalizeActorKey(data.get("harvestPokemonId"));
       const pokemon = getPokemonByKey(this.actor, this.state.harvest.pokemonId);
@@ -448,7 +457,7 @@ export class PfgMaintenanceApp extends Application {
 
     if (name === "manualLevel") this.state.manualLevel = stringValue(field.value);
     if (name === "manualPower") this.state.manualPower = stringValue(field.value);
-    if (name === "prSkillKey") this.state.prSkillKey = normalizeMaintenanceSkill(field.value, this.state.prSkillKey);
+    if (name === "prSkillKey") this.state.prSkillKey = normalizePrSkill(field.value, this.state.prSkillKey);
     const prBonusKey = getPrBonusStateKey(name);
     if (prBonusKey) this.ensurePrBonusState()[prBonusKey] = stringValue(field.value);
     if (name === "weekName") this.state.calendar.weekName = stringValue(field.value);
@@ -459,6 +468,7 @@ export class PfgMaintenanceApp extends Application {
     if (name === "workSkillKey") this.state.work.skillKey = normalizeMaintenanceSkill(field.value, this.state.work.skillKey);
     if (name === "workCount") this.state.work.count = readPositiveCount(field.value, this.state.work.count);
     if (name === "harvestKey") this.state.harvest.harvestKey = normalizeHarvestKey(field.value, this.state.harvest.harvestKey);
+    if (name === "harvestCount") this.state.harvest.count = readPositiveCount(field.value, this.state.harvest.count);
     if (name === "harvestPokemonId") {
       this.state.harvest.pokemonId = normalizeActorKey(field.value);
       const pokemon = getPokemonByKey(this.actor, this.state.harvest.pokemonId);
@@ -520,6 +530,10 @@ export class PfgMaintenanceApp extends Application {
     this.state.harvest.harvestKey = harvestKey;
     const selectedOption = getHarvestOption(harvestKey);
     const remainingBefore = Math.max(0, Math.trunc(Number(availablePRQ) || 0));
+    const unitCostPRQ = selectedOption?.costPRQ ?? 0;
+    const maxCount = unitCostPRQ > 0 ? Math.floor(remainingBefore / unitCostPRQ) : 0;
+    const count = lockedActivity?.count ?? Math.min(Math.max(1, this.state.harvest.count ?? 1), Math.max(1, maxCount));
+    const costPRQ = lockedActivity?.costPRQ ?? count * unitCostPRQ;
     const selectedPokemonId = lockedActivity?.pokemonId ?? this.state.harvest.pokemonId;
     const selectedPokemon = actor && !lockedActivity ? getPokemonByKey(actor, selectedPokemonId) : null;
     const pokemonOptions = getPokemonOptions(actor, selectedPokemonId);
@@ -547,13 +561,15 @@ export class PfgMaintenanceApp extends Application {
       detectedOricorioNames,
       paleontologyConfirmed,
       rareCandyIngredientConfirmed,
-      remainingBefore
+      remainingBefore,
+      costPRQ
     });
-    const costPRQ = lockedActivity?.costPRQ ?? selectedOption?.costPRQ ?? 0;
 
     return {
       ...this.state.harvest,
       harvestKey,
+      count,
+      maxCount: lockedActivity?.count ?? maxCount,
       pokemonId: selectedPokemonId,
       pokemonName,
       secondPokemonName,
@@ -580,6 +596,8 @@ export class PfgMaintenanceApp extends Application {
       detectedOricorioLabel: detectedOricorioNames.join(", "),
       costPRQ,
       costLabel: lockedActivity?.costLabel ?? formatPRQ(costPRQ),
+      unitCostPRQ,
+      unitCostLabel: formatPRQ(unitCostPRQ),
       remainingBefore,
       remainingBeforeLabel: formatPRQ(remainingBefore),
       remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - (lockedActivity ? 0 : costPRQ))),
@@ -849,7 +867,8 @@ export class PfgMaintenanceApp extends Application {
     }
 
     const option = harvest.selectedOption;
-    const result = await this.applyHarvestResult(actor, option);
+    const count = Math.max(1, Math.trunc(Number(harvest.count) || 1));
+    const result = await this.applyHarvestResult(actor, option, count);
     const pokemonNames = [harvest.pokemonName, harvest.requiresSecondPokemon ? harvest.secondPokemonName : ""]
       .map((name) => stringValue(name))
       .filter(Boolean);
@@ -857,7 +876,7 @@ export class PfgMaintenanceApp extends Application {
       ? "Field of Study: Paleontology"
       : (pokemonNames.join(", ") || "Pokémon confirmé");
     const resultStatus = option.requiresRareCandyIngredient
-      ? `${result.status} Retirer ${harvest.rareCandyIngredientName || option.ingredientLabel || "Shuckle's Berry Juice"} manuellement de l'inventaire.`
+      ? `${result.status} Retirer ${count} × ${harvest.rareCandyIngredientName || option.ingredientLabel || "Shuckle's Berry Juice"} manuellement de l'inventaire.`
       : result.status;
     const activity = {
       key: ACTIVITY_KEYS.pokemonHarvest,
@@ -876,15 +895,18 @@ export class PfgMaintenanceApp extends Application {
       rareCandyIngredientConfirmed: harvest.rareCandyIngredientConfirmed,
       rareCandyIngredientName: harvest.rareCandyIngredientName,
       rareCandyIngredientUuid: harvest.rareCandyIngredientUuid,
-      costPRQ: option.costPRQ,
-      costLabel: formatPRQ(option.costPRQ),
+      count,
+      costPRQ: harvest.costPRQ,
+      costLabel: harvest.costLabel,
       resultType: option.resultType,
       resultTypeLabel: getHarvestResultTypeLabel(option.resultType),
       resultUuid: option.resultUuid ?? "",
       resultLabel: option.resultLabel ?? option.label,
+      resultEntries: result.entries ?? [],
+      hasResultEntries: (result.entries ?? []).length > 0,
       resultStatus,
       resultApplied: result.applied,
-      summaryLine: `${option.label} avec ${pokemonNamesLabel}: ${option.resultLabel ?? "résultat à gérer"}`,
+      summaryLine: `${option.label} × ${count} avec ${pokemonNamesLabel}: ${formatResultEntries(result.entries) || option.resultLabel || "résultat à gérer"}`,
       rolls: [],
       totalGain: 0,
       moneyDelta: 0,
@@ -911,8 +933,9 @@ export class PfgMaintenanceApp extends Application {
     this.render(false);
   }
 
-  async applyHarvestResult(actor, option) {
+  async applyHarvestResult(actor, option, count = 1) {
     if (!option) return { applied: false, status: "Récolte inconnue." };
+    const quantity = Math.max(1, Math.trunc(Number(count) || 1));
 
     try {
       if (option.resultType === HARVEST_RESULT_TYPES.item) {
@@ -925,10 +948,11 @@ export class PfgMaintenanceApp extends Application {
         const item = await globalThis.fromUuid(option.resultUuid);
         if (!item) return { applied: false, status: `${option.resultLabel} introuvable: à ajouter manuellement.` };
 
-        const created = await addItemToActor(actor, item, 1);
+        const created = await addItemToActor(actor, item, quantity);
         return {
           applied: Boolean(created),
-          status: created ? `${created.name ?? option.resultLabel} ajouté à l'inventaire.` : `${option.resultLabel} à ajouter manuellement.`
+          entries: [{ index: 1, label: `${created?.name ?? option.resultLabel} × ${quantity}` }],
+          status: created ? `${created.name ?? option.resultLabel} × ${quantity} ajouté à l'inventaire.` : `${option.resultLabel} × ${quantity} à ajouter manuellement.`
         };
       }
 
@@ -939,11 +963,27 @@ export class PfgMaintenanceApp extends Application {
         const table = await globalThis.fromUuid(option.resultUuid);
         if (!table?.draw) return { applied: false, status: `${option.resultLabel} introuvable: table à lancer manuellement.` };
 
-        await table.draw({ displayChat: true });
-        return { applied: true, status: `${option.resultLabel} lancée dans le chat.` };
+        const entries = [];
+        for (let index = 0; index < quantity; index += 1) {
+          const draw = await table.draw({ displayChat: true });
+          entries.push({
+            index: index + 1,
+            label: getRollTableDrawLabel(draw, option.resultLabel)
+          });
+        }
+        return { applied: true, entries, status: `${option.resultLabel} lancée ${quantity} fois dans le chat.` };
       }
 
-      return { applied: true, status: option.resultLabel ?? "Information postée dans le chat." };
+      return {
+        applied: true,
+        entries: Array.from({ length: quantity }, (_, index) => ({
+          index: index + 1,
+          label: option.resultLabel ?? "Information uniquement dans le chat"
+        })),
+        status: quantity > 1
+          ? `${option.resultLabel ?? "Information"} notée ${quantity} fois dans le chat.`
+          : option.resultLabel ?? "Information postée dans le chat."
+      };
     } catch (error) {
       console.error(`${MODULE_ID} | Récolte Pokémon impossible.`, error);
       return { applied: false, status: `${option.resultLabel ?? option.label} à appliquer manuellement (${error.message ?? error}).` };
@@ -1278,6 +1318,23 @@ export class PfgMaintenanceApp extends Application {
     this.render(false);
   }
 
+  startNewMaintenance() {
+    const actor = this.actor;
+    if (!actor) {
+      this.state.step = "trainer";
+      this.render(false);
+      return;
+    }
+
+    this.state.calendar = { ...DEFAULT_WEEK_DATA };
+    this.state.prBonuses = createEmptyPrBonuses();
+    this.state.selectedActivity = ACTIVITY_KEYS.work;
+    this.state.prSkillKey = normalizePrSkill(this.state.prSkillKey, getBestSkill(actor, "work")?.key ?? "generalEd");
+    this.resetActivityState(this.state.prSkillKey);
+    this.state.step = "pr";
+    this.render(false);
+  }
+
   async finishMaintenance() {
     const actor = this.actor;
     const plannedActivities = this.getPlannedActivities();
@@ -1402,6 +1459,7 @@ export class PfgMaintenanceApp extends Application {
   resetHarvestState() {
     this.state.harvest = {
       harvestKey: POKEMON_HARVEST_OPTIONS[0]?.key ?? "",
+      count: 1,
       pokemonId: "",
       pokemonName: "",
       secondPokemonName: "",
@@ -1430,7 +1488,7 @@ export class PfgMaintenanceApp extends Application {
     this.state.actorId = getActorKey(actor);
     this.state.step = "pr";
     const bestSkill = getBestSkill(actor, "work");
-    this.state.prSkillKey = normalizeMaintenanceSkill(bestSkill?.key, "generalEd");
+    this.state.prSkillKey = normalizePrSkill(bestSkill?.key, "generalEd");
     this.resetActivityState(this.state.prSkillKey);
     this.debugSelection("select-trainer", this.state.actorId, actor);
     this.render(false);
@@ -1545,6 +1603,22 @@ function getHarvestResultTypeLabel(resultType) {
   return "Info chat";
 }
 
+function getRollTableDrawLabel(draw, fallback = "Résultat") {
+  const results = Array.from(draw?.results ?? []);
+  const labels = results
+    .map((result) => result?.text ?? result?.document?.name ?? result?.name ?? result?.getChatText?.())
+    .map((label) => stringValue(label))
+    .filter(Boolean);
+  return labels.join(", ") || fallback;
+}
+
+function formatResultEntries(entries = []) {
+  return entries
+    .map((entry) => stringValue(entry?.label))
+    .filter(Boolean)
+    .join("; ");
+}
+
 function getCraftType(key) {
   return CRAFTING_TYPES.find((type) => type.key === key) ?? CRAFTING_TYPES[0] ?? null;
 }
@@ -1646,8 +1720,9 @@ function getHarvestRequirementErrors(actor, option, context) {
   if (!actor) errors.push("Choisis un Trainer avant de faire une récolte.");
   if (!option) return ["Récolte inconnue."];
 
-  if (context.remainingBefore < option.costPRQ) {
-    errors.push(`PR insuffisants: ${formatPRQ(option.costPRQ)} requis.`);
+  const requiredPRQ = Math.max(0, Math.trunc(Number(context.costPRQ ?? option.costPRQ) || 0));
+  if (context.remainingBefore < requiredPRQ) {
+    errors.push(`PR insuffisants: ${formatPRQ(requiredPRQ)} requis.`);
   }
 
   if (option.requiresPaleontologyConfirmation && !context.paleontologyConfirmed) {
@@ -1740,6 +1815,13 @@ function normalizeMaintenanceSkill(value, fallback = "generalEd") {
   if (MAINTENANCE_SKILL_KEYS.includes(key)) return key;
   if (MAINTENANCE_SKILL_KEYS.includes(fallback)) return fallback;
   return MAINTENANCE_SKILL_KEYS[0] ?? "generalEd";
+}
+
+function normalizePrSkill(value, fallback = "generalEd") {
+  const key = stringValue(value);
+  if (PR_MAINTENANCE_SKILL_KEYS.includes(key)) return key;
+  if (PR_MAINTENANCE_SKILL_KEYS.includes(fallback)) return fallback;
+  return PR_MAINTENANCE_SKILL_KEYS[0] ?? "generalEd";
 }
 
 function readPositiveCount(value, fallback = 1) {
