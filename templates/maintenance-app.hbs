@@ -124,6 +124,14 @@
             <dt>Calcul</dt>
             <dd>{{pr.detail}}</dd>
           </div>
+          <div>
+            <dt>PR de base</dt>
+            <dd>{{basePRLabel}}</dd>
+          </div>
+          <div>
+            <dt>Bonus PR</dt>
+            <dd>{{prBonuses.totalBonusLabel}} <small>dont {{prBonuses.activityTotalLabel}} réservé par activité</small></dd>
+          </div>
         </dl>
 
         {{#if pr.level.missing}}
@@ -143,6 +151,33 @@
             <input type="number" name="manualPower" min="0" step="1" value="{{manualPower}}" placeholder="{{pr.power.value}}">
           </label>
         </div>
+
+        <div class="pfg-two-cols">
+          <label>
+            Bonus PR
+            <input type="number" name="bonusPR" min="0" step="0.25" value="{{prBonuses.globalValue}}" placeholder="0">
+          </label>
+          <label>
+            Bonus PR uniquement Petit Travail
+            <input type="number" name="bonusPRWork" min="0" step="0.25" value="{{prBonuses.workValue}}" placeholder="0">
+          </label>
+        </div>
+
+        <div class="pfg-two-cols">
+          <label>
+            Bonus PR uniquement Fabrication
+            <input type="number" name="bonusPRCrafting" min="0" step="0.25" value="{{prBonuses.craftingValue}}" placeholder="0">
+          </label>
+          <label>
+            Bonus PR uniquement Récolte
+            <input type="number" name="bonusPRHarvest" min="0" step="0.25" value="{{prBonuses.harvestValue}}" placeholder="0">
+          </label>
+        </div>
+
+        <label>
+          Bonus PR uniquement Agriculture
+          <input type="number" name="bonusPRGardening" min="0" step="0.25" value="{{prBonuses.gardeningValue}}" placeholder="0">
+        </label>
       </div>
 
       <div class="pfg-panel">

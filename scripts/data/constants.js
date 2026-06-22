@@ -109,14 +109,7 @@ export const TRAINER_SKILLS = [
   { key: "survival", label: "Survival" }
 ];
 
-export const MAINTENANCE_SKILL_KEYS = [
-  "generalEd",
-  "occultEd",
-  "medicineEd",
-  "pokemonEd",
-  "techEd",
-  "survival"
-];
+export const MAINTENANCE_SKILL_KEYS = TRAINER_SKILLS.map((skill) => skill.key);
 
 export const PR_SKILL_KEYS = {
   work: MAINTENANCE_SKILL_KEYS,

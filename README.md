@@ -9,7 +9,9 @@ Cette version livre l'étape 1 du cahier des charges:
 - Macro `game.pfgMaintenance.open();`
 - Selection des Trainers possedes par le joueur, ou de tous les Trainers pour un MJ.
 - Calcul des Points Rentability / PR avec stockage interne en quarts de PR (`PRQ`).
-- Choix manuel du skill PR parmi `General Education`, `Occult Education`, `Medicine Education`, `Pokémon Education`, `Technology Education` et `Survival`.
+- Choix manuel du skill PR et du skill Petit Travail parmi tous les skills Trainer détectés.
+- Bonus PR configurables: bonus général, bonus Fabrication, bonus Récolte, bonus Petit Travail et bonus Agriculture.
+- Les bonus PR spécifiques sont dépensés seulement par leur activité, avant les PR généraux.
 - Lecture PTR des skills via `system.skills.<skill>.value.total` et `modifier.total`, donc avec les bonus/malus de fiche.
 - Overrides manuels pour le niveau et Power si les chemins PTR ne sont pas détectés.
 - Detection basique de Simple Calendar Reborn si son API est disponible, sinon semaine manuelle.
@@ -109,6 +111,13 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Cliquer `X` sur un ingrédient réservé: il doit disparaître de la liste sans modifier l'inventaire.
 - Confirmer une Fabrication avec argent et ingrédients suffisants: argent et ingrédients sont retirés, l'objet final est ajouté et le résumé chat est posté.
 - Tenter une Fabrication avec argent, PR ou ingrédients insuffisants: la confirmation doit être bloquée.
+- Dans l'écran PR, vérifier que la liste de skills contient aussi les skills non-Education comme `Acrobatics`, `Charm`, `Combat`, `Command`, `Focus`, `Guile`, `Intimidate`, `Intuition`, `Perception` et `Stealth`.
+- Entrer un `Bonus PR` général et vérifier qu'il peut servir à Petit Travail, Récolte ou Fabrication.
+- Entrer un `Bonus PR uniquement Petit Travail`, lancer un Petit Travail, puis vérifier que ce bonus ne permet pas de financer une Fabrication.
+- Entrer un `Bonus PR uniquement Fabrication`, confirmer une Fabrication, puis vérifier que ce bonus ne permet pas de financer Petit Travail ou Récolte.
+- Entrer un `Bonus PR uniquement Récolte`, confirmer une Récolte Pokémon, puis vérifier que ce bonus ne permet pas de financer Petit Travail ou Fabrication.
+- Entrer un `Bonus PR uniquement Agriculture` et vérifier qu'il augmente les PR totaux sans débloquer les activités actuellement actives tant que l'Agriculture reste désactivée.
+- Entrer un bonus avec un quart de PR, par exemple `0.25`, et vérifier que le total affiche `1/4 PR`.
 
 ## Configuration MJ
 

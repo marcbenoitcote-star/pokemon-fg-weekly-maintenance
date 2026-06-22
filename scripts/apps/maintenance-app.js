@@ -20,6 +20,7 @@ import {
   getRankLabel,
   getSkillOptions,
   getSkillRank,
+  toPRQ,
   getWorkRateForRank
 } from "../services/pr-service.js";
 import {
@@ -71,6 +72,7 @@ export class PfgMaintenanceApp extends Application {
       manualLevel: "",
       manualPower: "",
       prSkillKey: "generalEd",
+      prBonuses: createEmptyPrBonuses(),
       calendar: { ...DEFAULT_WEEK_DATA },
       selectedActivity: ACTIVITY_KEYS.work,
       work: {
@@ -126,12 +128,14 @@ export class PfgMaintenanceApp extends Application {
     const lockWeeks = setting(SETTINGS.lockWeeks, true);
     const weekLocked = Boolean(actor && lockWeeks && isWeekFinalized(actor, week.weekKey));
     const plannedActivities = this.getPlannedActivities();
-    const spentPRQ = plannedActivities.reduce((total, activity) => total + Number(activity.costPRQ || 0), 0);
-    const totalPRQ = pr?.totalPRQ ?? 0;
-    const remainingPRQ = Math.max(0, totalPRQ - spentPRQ);
-    const workData = this.getWorkData(actor, totalPRQ, spentPRQ);
-    const harvestData = this.getHarvestData(actor, totalPRQ, spentPRQ);
-    const craftingData = this.getCraftingData(actor, totalPRQ, spentPRQ);
+    const basePRQ = pr?.totalPRQ ?? 0;
+    const budget = this.getBudgetData(basePRQ, plannedActivities);
+    const totalPRQ = budget.totalPRQ;
+    const spentPRQ = budget.spentPRQ;
+    const remainingPRQ = budget.remainingPRQ;
+    const workData = this.getWorkData(actor, budget.availableByActivity[ACTIVITY_KEYS.work] ?? 0);
+    const harvestData = this.getHarvestData(actor, budget.availableByActivity[ACTIVITY_KEYS.pokemonHarvest] ?? 0);
+    const craftingData = this.getCraftingData(actor, budget.availableByActivity[ACTIVITY_KEYS.crafting] ?? 0);
     const activityHistory = plannedActivities.map((activity, index) => ({
       ...activity,
       number: index + 1,
@@ -173,6 +177,10 @@ export class PfgMaintenanceApp extends Application {
       pr,
       prSkillKey: this.state.prSkillKey,
       prSkillOptions: getSkillOptions(actor, this.state.prSkillKey, MAINTENANCE_SKILL_KEYS),
+      basePRQ,
+      basePRLabel: formatPRQ(basePRQ),
+      prBonuses: budget.bonuses,
+      budget,
       totalPRQ,
       totalPRLabel: formatPRQ(totalPRQ),
       spentPRQ,
@@ -200,7 +208,7 @@ export class PfgMaintenanceApp extends Application {
       currentActivity: this.state.currentActivity,
       currentActivityRolls: this.state.currentActivity?.rolls ?? [],
       hasCurrentActivity: Boolean(this.state.currentActivity),
-      canStartAnotherActivity: Boolean(actor && this.state.currentActivity && !weekLocked && remainingPRQ >= getCheapestEnabledActivityCost()),
+      canStartAnotherActivity: Boolean(actor && this.state.currentActivity && !weekLocked && canStartAnyEnabledActivity(budget)),
       finalized: this.state.finalized
     };
   }
@@ -231,7 +239,7 @@ export class PfgMaintenanceApp extends Application {
       this.updateFieldState(event.currentTarget);
     });
 
-    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], input[name^='craftIngredientQuantity:']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], input[name='bonusPR'], input[name='bonusPRCrafting'], input[name='bonusPRHarvest'], input[name='bonusPRWork'], input[name='bonusPRGardening'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], input[name^='craftIngredientQuantity:']", (event) => {
       this.updateFieldState(event.currentTarget);
       this.render(false);
     });
@@ -394,10 +402,16 @@ export class PfgMaintenanceApp extends Application {
     if (!form) return;
 
     const data = new FormData(form);
+    const prBonuses = this.ensurePrBonusState();
     if (data.has("actorId")) this.state.actorId = normalizeActorKey(data.get("actorId")) || this.state.actorId;
     if (data.has("manualLevel")) this.state.manualLevel = stringValue(data.get("manualLevel"));
     if (data.has("manualPower")) this.state.manualPower = stringValue(data.get("manualPower"));
     if (data.has("prSkillKey")) this.state.prSkillKey = normalizeMaintenanceSkill(data.get("prSkillKey"), this.state.prSkillKey);
+    if (data.has("bonusPR")) prBonuses.global = stringValue(data.get("bonusPR"));
+    if (data.has("bonusPRCrafting")) prBonuses.crafting = stringValue(data.get("bonusPRCrafting"));
+    if (data.has("bonusPRHarvest")) prBonuses.harvest = stringValue(data.get("bonusPRHarvest"));
+    if (data.has("bonusPRWork")) prBonuses.work = stringValue(data.get("bonusPRWork"));
+    if (data.has("bonusPRGardening")) prBonuses.gardening = stringValue(data.get("bonusPRGardening"));
     if (data.has("weekName")) this.state.calendar.weekName = stringValue(data.get("weekName"));
     if (data.has("rpDate")) this.state.calendar.rpDate = stringValue(data.get("rpDate"));
     if (data.has("eventName")) this.state.calendar.eventName = stringValue(data.get("eventName"));
@@ -435,6 +449,8 @@ export class PfgMaintenanceApp extends Application {
     if (name === "manualLevel") this.state.manualLevel = stringValue(field.value);
     if (name === "manualPower") this.state.manualPower = stringValue(field.value);
     if (name === "prSkillKey") this.state.prSkillKey = normalizeMaintenanceSkill(field.value, this.state.prSkillKey);
+    const prBonusKey = getPrBonusStateKey(name);
+    if (prBonusKey) this.ensurePrBonusState()[prBonusKey] = stringValue(field.value);
     if (name === "weekName") this.state.calendar.weekName = stringValue(field.value);
     if (name === "rpDate") this.state.calendar.rpDate = stringValue(field.value);
     if (name === "eventName") this.state.calendar.eventName = stringValue(field.value);
@@ -462,9 +478,9 @@ export class PfgMaintenanceApp extends Application {
     }
   }
 
-  getWorkData(actor, totalPRQ, spentPRQ) {
+  getWorkData(actor, availablePRQ) {
     const lockedActivity = this.state.currentActivity?.key === ACTIVITY_KEYS.work ? this.state.currentActivity : null;
-    const remainingBefore = Math.max(0, totalPRQ - spentPRQ);
+    const remainingBefore = Math.max(0, Math.trunc(Number(availablePRQ) || 0));
     const maxCount = Math.floor(remainingBefore / ACTIVITY_COSTS_PRQ.work);
     const workSkillKey = normalizeMaintenanceSkill(lockedActivity?.skillKey ?? this.state.work.skillKey, this.state.prSkillKey);
     this.state.work.skillKey = workSkillKey;
@@ -498,12 +514,12 @@ export class PfgMaintenanceApp extends Application {
     };
   }
 
-  getHarvestData(actor, totalPRQ, spentPRQ) {
+  getHarvestData(actor, availablePRQ) {
     const lockedActivity = this.state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest ? this.state.currentActivity : null;
     const harvestKey = normalizeHarvestKey(lockedActivity?.harvestKey ?? this.state.harvest.harvestKey);
     this.state.harvest.harvestKey = harvestKey;
     const selectedOption = getHarvestOption(harvestKey);
-    const remainingBefore = Math.max(0, totalPRQ - spentPRQ);
+    const remainingBefore = Math.max(0, Math.trunc(Number(availablePRQ) || 0));
     const selectedPokemonId = lockedActivity?.pokemonId ?? this.state.harvest.pokemonId;
     const selectedPokemon = actor && !lockedActivity ? getPokemonByKey(actor, selectedPokemonId) : null;
     const pokemonOptions = getPokemonOptions(actor, selectedPokemonId);
@@ -580,9 +596,9 @@ export class PfgMaintenanceApp extends Application {
     };
   }
 
-  getCraftingData(actor, totalPRQ, spentPRQ) {
+  getCraftingData(actor, availablePRQ) {
     const lockedActivity = this.state.currentActivity?.key === ACTIVITY_KEYS.crafting ? this.state.currentActivity : null;
-    const remainingBefore = Math.max(0, totalPRQ - spentPRQ);
+    const remainingBefore = Math.max(0, Math.trunc(Number(availablePRQ) || 0));
     const craftTypeKey = normalizeCraftType(lockedActivity?.craftType ?? this.state.crafting.type);
     this.state.crafting.type = craftTypeKey;
     const craftType = getCraftType(craftTypeKey);
@@ -652,6 +668,96 @@ export class PfgMaintenanceApp extends Application {
     return this.state.activities ?? [];
   }
 
+  ensurePrBonusState() {
+    if (!this.state.prBonuses) this.state.prBonuses = createEmptyPrBonuses();
+    return this.state.prBonuses;
+  }
+
+  getPrBonusData() {
+    const values = this.ensurePrBonusState();
+    const activityPRQ = {
+      [ACTIVITY_KEYS.work]: readPrBonusPRQ(values.work),
+      [ACTIVITY_KEYS.crafting]: readPrBonusPRQ(values.crafting),
+      [ACTIVITY_KEYS.pokemonHarvest]: readPrBonusPRQ(values.harvest),
+      [ACTIVITY_KEYS.gardening]: readPrBonusPRQ(values.gardening)
+    };
+    const globalPRQ = readPrBonusPRQ(values.global);
+    const activityTotalPRQ = Object.values(activityPRQ).reduce((total, value) => total + value, 0);
+    const totalBonusPRQ = globalPRQ + activityTotalPRQ;
+
+    return {
+      globalValue: values.global ?? "",
+      craftingValue: values.crafting ?? "",
+      harvestValue: values.harvest ?? "",
+      workValue: values.work ?? "",
+      gardeningValue: values.gardening ?? "",
+      globalPRQ,
+      globalLabel: formatPRQ(globalPRQ),
+      activityPRQ,
+      workPRQ: activityPRQ[ACTIVITY_KEYS.work],
+      workLabel: formatPRQ(activityPRQ[ACTIVITY_KEYS.work]),
+      craftingPRQ: activityPRQ[ACTIVITY_KEYS.crafting],
+      craftingLabel: formatPRQ(activityPRQ[ACTIVITY_KEYS.crafting]),
+      harvestPRQ: activityPRQ[ACTIVITY_KEYS.pokemonHarvest],
+      harvestLabel: formatPRQ(activityPRQ[ACTIVITY_KEYS.pokemonHarvest]),
+      gardeningPRQ: activityPRQ[ACTIVITY_KEYS.gardening],
+      gardeningLabel: formatPRQ(activityPRQ[ACTIVITY_KEYS.gardening]),
+      activityTotalPRQ,
+      activityTotalLabel: formatPRQ(activityTotalPRQ),
+      totalBonusPRQ,
+      totalBonusLabel: formatPRQ(totalBonusPRQ)
+    };
+  }
+
+  getBudgetData(basePRQ, activities = this.getPlannedActivities()) {
+    const sanitizedBasePRQ = Math.max(0, Math.trunc(Number(basePRQ) || 0));
+    const bonuses = this.getPrBonusData();
+    let remainingGeneralPRQ = sanitizedBasePRQ + bonuses.globalPRQ;
+    const remainingSpecificPRQ = { ...bonuses.activityPRQ };
+    const allocations = [];
+    const spentPRQ = activities.reduce((total, activity) => total + Math.max(0, Math.trunc(Number(activity.costPRQ) || 0)), 0);
+
+    for (const activity of activities) {
+      const key = activity?.key;
+      let remainingCostPRQ = Math.max(0, Math.trunc(Number(activity?.costPRQ) || 0));
+      const specificBeforePRQ = Math.max(0, remainingSpecificPRQ[key] ?? 0);
+      const usedSpecificPRQ = Math.min(specificBeforePRQ, remainingCostPRQ);
+      remainingCostPRQ -= usedSpecificPRQ;
+      if (key in remainingSpecificPRQ) remainingSpecificPRQ[key] = specificBeforePRQ - usedSpecificPRQ;
+
+      const usedGeneralPRQ = Math.min(remainingGeneralPRQ, remainingCostPRQ);
+      remainingGeneralPRQ -= usedGeneralPRQ;
+      remainingCostPRQ -= usedGeneralPRQ;
+
+      allocations.push({
+        key,
+        usedSpecificPRQ,
+        usedGeneralPRQ,
+        deficitPRQ: Math.max(0, remainingCostPRQ)
+      });
+    }
+
+    const activityKeys = [ACTIVITY_KEYS.work, ACTIVITY_KEYS.crafting, ACTIVITY_KEYS.pokemonHarvest, ACTIVITY_KEYS.gardening];
+    const availableByActivity = activityKeys.reduce((available, key) => {
+      available[key] = Math.max(0, remainingGeneralPRQ + (remainingSpecificPRQ[key] ?? 0));
+      return available;
+    }, {});
+    const remainingSpecificTotalPRQ = Object.values(remainingSpecificPRQ).reduce((total, value) => total + value, 0);
+
+    return {
+      basePRQ: sanitizedBasePRQ,
+      bonuses,
+      totalPRQ: sanitizedBasePRQ + bonuses.totalBonusPRQ,
+      spentPRQ,
+      remainingPRQ: Math.max(0, remainingGeneralPRQ + remainingSpecificTotalPRQ),
+      remainingGeneralPRQ: Math.max(0, remainingGeneralPRQ),
+      remainingGeneralLabel: formatPRQ(remainingGeneralPRQ),
+      remainingSpecificPRQ,
+      availableByActivity,
+      allocations
+    };
+  }
+
   async rollWork() {
     const actor = this.actor;
     if (!actor) return;
@@ -717,7 +823,7 @@ export class PfgMaintenanceApp extends Application {
       activity,
       rolls,
       totalGain,
-      remainingPRLabel: formatPRQ(Math.max(0, data.totalPRQ - activity.costPRQ))
+      remainingPRLabel: formatPRQ(this.getTotals().remainingPRQ)
     });
 
     this.state.step = "summary";
@@ -1008,7 +1114,8 @@ export class PfgMaintenanceApp extends Application {
     );
     if (!confirmed) return;
 
-    const refreshed = this.getCraftingData(actor, data.totalPRQ, data.spentPRQ);
+    const refreshedBudget = this.getBudgetData(data.basePRQ, this.getPlannedActivities());
+    const refreshed = this.getCraftingData(actor, refreshedBudget.availableByActivity[ACTIVITY_KEYS.crafting] ?? 0);
     const errors = getCraftRequirementErrors(actor, {
       itemUuid: refreshed.itemUuid,
       itemName: refreshed.itemName,
@@ -1157,7 +1264,7 @@ export class PfgMaintenanceApp extends Application {
     }
 
     const totals = this.getTotals();
-    if (totals.remainingPRQ < getCheapestEnabledActivityCost()) {
+    if (!canStartAnyEnabledActivity(totals.budget)) {
       ui.notifications.warn("PR insuffisants pour commencer une autre activité.");
       this.render(false);
       return;
@@ -1237,12 +1344,12 @@ export class PfgMaintenanceApp extends Application {
       manualPower: this.state.manualPower,
       skillKey: this.state.prSkillKey
     }) : null;
-    const totalPRQ = pr?.totalPRQ ?? 0;
-    const spentPRQ = this.getPlannedActivities().reduce((total, activity) => total + Number(activity.costPRQ || 0), 0);
+    const budget = this.getBudgetData(pr?.totalPRQ ?? 0, this.getPlannedActivities());
     return {
-      totalPRQ,
-      spentPRQ,
-      remainingPRQ: Math.max(0, totalPRQ - spentPRQ)
+      totalPRQ: budget.totalPRQ,
+      spentPRQ: budget.spentPRQ,
+      remainingPRQ: budget.remainingPRQ,
+      budget
     };
   }
 
@@ -1360,17 +1467,65 @@ function getVisibleSteps(state) {
   ];
 }
 
-function getCheapestEnabledActivityCost() {
+function createEmptyPrBonuses() {
+  return {
+    global: "",
+    crafting: "",
+    harvest: "",
+    work: "",
+    gardening: ""
+  };
+}
+
+function getPrBonusStateKey(fieldName) {
+  switch (fieldName) {
+    case "bonusPR": return "global";
+    case "bonusPRCrafting": return "crafting";
+    case "bonusPRHarvest": return "harvest";
+    case "bonusPRWork": return "work";
+    case "bonusPRGardening": return "gardening";
+    default: return null;
+  }
+}
+
+function readPrBonusPRQ(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return 0;
+  return Math.max(0, toPRQ(number));
+}
+
+function canStartAnyEnabledActivity(budget) {
+  if (!budget?.availableByActivity) return false;
   const enabledKeys = new Set(ACTIVITY_OPTIONS.filter((option) => option.enabled).map((option) => option.key));
-  const costs = [];
-  if (enabledKeys.has(ACTIVITY_KEYS.work)) costs.push(ACTIVITY_COSTS_PRQ.work);
+
+  if (enabledKeys.has(ACTIVITY_KEYS.work) && (budget.availableByActivity[ACTIVITY_KEYS.work] ?? 0) >= ACTIVITY_COSTS_PRQ.work) {
+    return true;
+  }
+
   if (enabledKeys.has(ACTIVITY_KEYS.crafting)) {
-    costs.push(...CRAFTING_TYPES.filter((type) => type.enabled).map((type) => type.costPRQ));
+    const cheapestCrafting = Math.min(...CRAFTING_TYPES
+      .filter((type) => type.enabled)
+      .map((type) => type.costPRQ)
+      .filter((cost) => Number.isFinite(cost) && cost > 0));
+    if (Number.isFinite(cheapestCrafting) && (budget.availableByActivity[ACTIVITY_KEYS.crafting] ?? 0) >= cheapestCrafting) {
+      return true;
+    }
   }
+
   if (enabledKeys.has(ACTIVITY_KEYS.pokemonHarvest)) {
-    costs.push(...POKEMON_HARVEST_OPTIONS.map((option) => option.costPRQ));
+    const cheapestHarvest = Math.min(...POKEMON_HARVEST_OPTIONS
+      .map((option) => option.costPRQ)
+      .filter((cost) => Number.isFinite(cost) && cost > 0));
+    if (Number.isFinite(cheapestHarvest) && (budget.availableByActivity[ACTIVITY_KEYS.pokemonHarvest] ?? 0) >= cheapestHarvest) {
+      return true;
+    }
   }
-  return Math.min(...costs.filter((cost) => Number.isFinite(cost) && cost > 0), ACTIVITY_COSTS_PRQ.work);
+
+  if (enabledKeys.has(ACTIVITY_KEYS.gardening) && (budget.availableByActivity[ACTIVITY_KEYS.gardening] ?? 0) >= ACTIVITY_COSTS_PRQ.gardenHarvest) {
+    return true;
+  }
+
+  return false;
 }
 
 function getHarvestOption(key) {
