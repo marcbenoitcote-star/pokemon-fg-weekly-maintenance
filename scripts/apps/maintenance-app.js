@@ -66,6 +66,7 @@ export class PfgMaintenanceApp extends Application {
         rolls: [],
         totalGain: 0
       },
+      activities: [],
       currentActivity: null,
       finalized: false
     };
@@ -94,6 +95,11 @@ export class PfgMaintenanceApp extends Application {
     const totalPRQ = pr?.totalPRQ ?? 0;
     const remainingPRQ = Math.max(0, totalPRQ - spentPRQ);
     const workData = this.getWorkData(actor, totalPRQ, spentPRQ);
+    const activityHistory = plannedActivities.map((activity, index) => ({
+      ...activity,
+      number: index + 1,
+      isCurrent: activity === this.state.currentActivity
+    }));
     const activityOptions = ACTIVITY_OPTIONS.map((activity) => ({
       ...activity,
       selected: activity.key === this.state.selectedActivity,
@@ -123,6 +129,7 @@ export class PfgMaintenanceApp extends Application {
       actorName: actor?.name ?? "",
       actorMoney: actor ? getMoney(actor) : 0,
       canApply: Boolean(actor && (actor.isOwner || game.user?.isGM)),
+      canApplyCurrentActivity: Boolean(actor && this.state.currentActivity && !this.state.currentActivity.applied && (actor.isOwner || game.user?.isGM)),
       pr,
       prSkillKey: this.state.prSkillKey,
       prSkillOptions: getSkillOptions(actor, this.state.prSkillKey, MAINTENANCE_SKILL_KEYS),
@@ -145,9 +152,13 @@ export class PfgMaintenanceApp extends Application {
       activityOptions,
       strictActivityMode: setting(SETTINGS.strictActivityMode, true),
       work: workData,
+      activities: plannedActivities,
+      activityHistory,
+      hasActivityHistory: activityHistory.length > 0,
       currentActivity: this.state.currentActivity,
       currentActivityRolls: this.state.currentActivity?.rolls ?? [],
       hasCurrentActivity: Boolean(this.state.currentActivity),
+      canStartAnotherActivity: Boolean(actor && this.state.currentActivity && !weekLocked && remainingPRQ >= ACTIVITY_COSTS_PRQ.work),
       finalized: this.state.finalized
     };
   }
@@ -257,6 +268,16 @@ export class PfgMaintenanceApp extends Application {
       return;
     }
 
+    if (action === "apply-gains-and-new") {
+      await this.applyGainsAndStartNewActivity();
+      return;
+    }
+
+    if (action === "new-activity") {
+      await this.startNewActivity();
+      return;
+    }
+
     if (action === "finish") {
       await this.finishMaintenance();
       return;
@@ -344,7 +365,7 @@ export class PfgMaintenanceApp extends Application {
   }
 
   getPlannedActivities() {
-    return this.state.currentActivity ? [this.state.currentActivity] : [];
+    return this.state.activities ?? [];
   }
 
   async rollWork() {
@@ -404,6 +425,7 @@ export class PfgMaintenanceApp extends Application {
 
     this.state.work.rolls = rolls;
     this.state.work.totalGain = totalGain;
+    this.state.activities.push(activity);
     this.state.currentActivity = activity;
 
     await postRollCard({
@@ -463,9 +485,36 @@ export class PfgMaintenanceApp extends Application {
     this.render(false);
   }
 
+  async applyGainsAndStartNewActivity() {
+    await this.applyWorkGains();
+    if (!this.state.currentActivity?.applied) return;
+    await this.startNewActivity();
+  }
+
+  async startNewActivity() {
+    if (!this.state.currentActivity) return;
+    if (!this.state.currentActivity.applied) {
+      ui.notifications.warn("Applique les gains avant de commencer une nouvelle activite.");
+      return;
+    }
+
+    const totals = this.getTotals();
+    if (totals.remainingPRQ < ACTIVITY_COSTS_PRQ.work) {
+      ui.notifications.warn("PR insuffisants pour commencer un autre Petit Travail.");
+      this.render(false);
+      return;
+    }
+
+    this.state.currentActivity = null;
+    this.resetWorkState();
+    this.state.step = "activity";
+    this.render(false);
+  }
+
   async finishMaintenance() {
     const actor = this.actor;
-    if (!actor || !this.state.currentActivity) return;
+    const plannedActivities = this.getPlannedActivities();
+    if (!actor || plannedActivities.length === 0) return;
     if (this.isCurrentWeekLocked()) {
       ui.notifications.warn("Cet entretien est déjà finalisé pour cette semaine.");
       return;
@@ -473,7 +522,7 @@ export class PfgMaintenanceApp extends Application {
 
     const totals = this.getTotals();
     const calendar = getCurrentWeekData(this.state.calendar);
-    const activities = this.getPlannedActivities().map((activity) => sanitizeActivity(activity));
+    const activities = plannedActivities.map((activity) => sanitizeActivity(activity));
     const weekData = {
       weekKey: calendar.weekKey,
       calendarLabel: calendar.calendarLabel,
@@ -493,7 +542,7 @@ export class PfgMaintenanceApp extends Application {
     await saveWeek(actor, weekData);
     await postFinalSummary({
       actor,
-      activity: this.state.currentActivity,
+      activity: this.state.currentActivity ?? plannedActivities.at(-1),
       activities,
       calendar,
       totalPRLabel: formatPRQ(totals.totalPRQ),
@@ -552,6 +601,13 @@ export class PfgMaintenanceApp extends Application {
   }
 
   resetActivityState(skillKey = this.state.prSkillKey) {
+    this.resetWorkState(skillKey);
+    this.state.activities = [];
+    this.state.currentActivity = null;
+    this.state.finalized = false;
+  }
+
+  resetWorkState(skillKey = this.state.prSkillKey) {
     const normalizedSkill = normalizeMaintenanceSkill(skillKey, "generalEd");
     this.state.work = {
       description: "",
@@ -560,8 +616,6 @@ export class PfgMaintenanceApp extends Application {
       rolls: [],
       totalGain: 0
     };
-    this.state.currentActivity = null;
-    this.state.finalized = false;
   }
 
   selectTrainer(actor) {

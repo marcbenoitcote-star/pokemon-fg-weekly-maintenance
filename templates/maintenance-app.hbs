@@ -352,6 +352,23 @@
       {{else}}
         <p class="pfg-warning">Aucune activité lancée.</p>
       {{/if}}
+
+      {{#if hasActivityHistory}}
+        <h3>Historique de l'entretien</h3>
+        <ol class="pfg-rolls">
+          {{#each activityHistory}}
+            <li>
+              <strong>#{{number}} {{title}}</strong> - {{description}} - {{costLabel}} - {{totalGain}}₽
+              {{#if applied}}<small>Gains appliqués</small>{{else}}<small>Gains non appliqués</small>{{/if}}
+              <ol>
+                {{#each rolls}}
+                  <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
+                {{/each}}
+              </ol>
+            </li>
+          {{/each}}
+        </ol>
+      {{/if}}
     </section>
 
     <footer class="pfg-actions">
@@ -363,11 +380,24 @@
         <i class="fas fa-message"></i>
         Poster résumé
       </button>
-      <button type="button" data-action="apply-gains" {{#unless canApply}}disabled{{/unless}}>
+      <button type="button" data-action="apply-gains" {{#unless canApplyCurrentActivity}}disabled{{/unless}}>
         <i class="fas fa-coins"></i>
         Appliquer les gains
       </button>
-      <button type="button" data-action="finish" {{#unless hasCurrentActivity}}disabled{{/unless}}>
+      {{#if canStartAnotherActivity}}
+        {{#if currentActivity.applied}}
+          <button type="button" data-action="new-activity">
+            <i class="fas fa-plus"></i>
+            Nouvelle activité
+          </button>
+        {{else}}
+          <button type="button" data-action="apply-gains-and-new" {{#unless canApplyCurrentActivity}}disabled{{/unless}}>
+            <i class="fas fa-coins"></i>
+            Appliquer + nouvelle activité
+          </button>
+        {{/if}}
+      {{/if}}
+      <button type="button" data-action="finish" {{#unless hasActivityHistory}}disabled{{/unless}}>
         <i class="fas fa-check"></i>
         Terminer l'entretien
       </button>
