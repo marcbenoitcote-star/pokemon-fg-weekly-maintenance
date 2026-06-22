@@ -19,6 +19,7 @@ Cette version livre l'étape 1 du cahier des charges:
 - Verrouillage d'une semaine finalisée via `flags.pokemon-fg-weekly-maintenance.weeks`.
 - Activité complète `Petit Travail Hebdomadaire`.
 - Jet `1d6 x taux du rang`, résumé chat et application optionnelle des gains.
+- Saisie stable du skill PR, de la description et du nombre de Petits Travaux pendant les recalculs d'interface.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
 Les étapes Fabrication, Récolte Pokémon et Agriculture / Jardinage sont visibles comme emplacements de travail, mais pas encore actives dans l'interface.

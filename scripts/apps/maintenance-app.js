@@ -174,8 +174,12 @@ export class PfgMaintenanceApp extends Application {
       this.render(false);
     });
 
+    html.on("input", "input[name='weekName'], input[name='rpDate'], input[name='eventName'], textarea[name='eventDescription'], input[name='workDescription']", (event) => {
+      this.updateFieldState(event.currentTarget);
+    });
+
     html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount']", (event) => {
-      this.readForm(event.currentTarget.closest("form") ?? html);
+      this.updateFieldState(event.currentTarget);
       this.render(false);
     });
   }
@@ -262,8 +266,7 @@ export class PfgMaintenanceApp extends Application {
   }
 
   readForm(html) {
-    const root = html?.[0] ?? html;
-    const form = root?.matches?.("form") ? root : root?.querySelector?.("form");
+    const form = resolveForm(html);
     if (!form) return;
 
     const data = new FormData(form);
@@ -278,7 +281,23 @@ export class PfgMaintenanceApp extends Application {
     if (data.has("selectedActivity")) this.state.selectedActivity = stringValue(data.get("selectedActivity")) || this.state.selectedActivity;
     if (data.has("workDescription")) this.state.work.description = stringValue(data.get("workDescription"));
     if (data.has("workSkillKey")) this.state.work.skillKey = normalizeMaintenanceSkill(data.get("workSkillKey"), this.state.work.skillKey);
-    if (data.has("workCount")) this.state.work.count = Math.max(1, Math.trunc(Number(data.get("workCount")) || 1));
+    if (data.has("workCount")) this.state.work.count = readPositiveCount(data.get("workCount"), this.state.work.count);
+  }
+
+  updateFieldState(field) {
+    const name = field?.name;
+    if (!name) return;
+
+    if (name === "manualLevel") this.state.manualLevel = stringValue(field.value);
+    if (name === "manualPower") this.state.manualPower = stringValue(field.value);
+    if (name === "prSkillKey") this.state.prSkillKey = normalizeMaintenanceSkill(field.value, this.state.prSkillKey);
+    if (name === "weekName") this.state.calendar.weekName = stringValue(field.value);
+    if (name === "rpDate") this.state.calendar.rpDate = stringValue(field.value);
+    if (name === "eventName") this.state.calendar.eventName = stringValue(field.value);
+    if (name === "eventDescription") this.state.calendar.eventDescription = stringValue(field.value);
+    if (name === "workDescription") this.state.work.description = stringValue(field.value);
+    if (name === "workSkillKey") this.state.work.skillKey = normalizeMaintenanceSkill(field.value, this.state.work.skillKey);
+    if (name === "workCount") this.state.work.count = readPositiveCount(field.value, this.state.work.count);
   }
 
   getWorkData(actor, totalPRQ, spentPRQ) {
@@ -563,11 +582,24 @@ function normalizeActorKey(value) {
   return String(value ?? "").trim();
 }
 
+function resolveForm(html) {
+  const root = html?.[0] ?? html;
+  if (!root) return null;
+  if (root.matches?.("form")) return root;
+  return root.closest?.("form") ?? root.querySelector?.("form") ?? null;
+}
+
 function normalizeMaintenanceSkill(value, fallback = "generalEd") {
   const key = stringValue(value);
   if (MAINTENANCE_SKILL_KEYS.includes(key)) return key;
   if (MAINTENANCE_SKILL_KEYS.includes(fallback)) return fallback;
   return MAINTENANCE_SKILL_KEYS[0] ?? "generalEd";
+}
+
+function readPositiveCount(value, fallback = 1) {
+  const number = Math.trunc(Number(value));
+  if (Number.isFinite(number) && number > 0) return number;
+  return Math.max(1, Math.trunc(Number(fallback) || 1));
 }
 
 function getActorByKey(actorKey) {
