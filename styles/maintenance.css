@@ -242,6 +242,51 @@
   opacity: 0.72;
 }
 
+.pfg-maintenance label.pfg-check {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  justify-content: start;
+  gap: 6px;
+  min-height: 46px;
+}
+
+.pfg-check input {
+  width: auto;
+  align-self: center;
+}
+
+.pfg-harvest-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pfg-harvest-list li {
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.pfg-harvest-list li.selected {
+  border-color: #2f6f87;
+  background: rgba(47, 111, 135, 0.12);
+}
+
+.pfg-harvest-list small {
+  display: block;
+  opacity: 0.72;
+}
+
+.pfg-errors {
+  margin: 0;
+  padding-left: 28px;
+}
+
 .pfg-rolls {
   margin: 0 0 0 20px;
 }
@@ -286,6 +331,7 @@
   .pfg-grid,
   .pfg-two-cols,
   .pfg-activity-list,
+  .pfg-harvest-list,
   .pfg-trainer-list,
   .pfg-pr-strip {
     grid-template-columns: 1fr;

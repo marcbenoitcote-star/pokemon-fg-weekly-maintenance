@@ -22,9 +22,14 @@ Cette version livre l'étape 1 du cahier des charges:
 - Saisie stable du skill PR, de la description et du nombre de Petits Travaux pendant les recalculs d'interface.
 - Verrouillage du Petit Travail apres le premier lancer: les PR restent depenses, les jets restent visibles, et l'activite ne peut pas etre relancee pour remplacer le resultat.
 - Possibilite d'appliquer les gains puis de commencer une nouvelle activite avec les PR restants, tout en gardant l'historique des activites deja lancees.
+- Activité complète `Récolte Pokémon` avec coûts 2 PR, 3 PR, 4 PR et 9 PR selon la récolte.
+- Liste active des récoltes: Honey Gather, Mushroom Harvest, Dream Mist, Milk Collection, Fortune, Herb Growth, Juicer, Fossil Research, Nectar Dancer, Pickup, Rare Candy, Heart Gift et Gather Unown.
+- Confirmation du Pokémon possédé par sélection d'un Actor Pokémon détecté ou par nom manuel.
+- Validation des prérequis spéciaux: feat `Fossil Research`, item `Juicer` pour Rare Candy, et 2 Oricorio pour Nectar Dancer.
+- Application de résultat Récolte: ajout d'item depuis UUID, lancement de RollTable, ou information chat selon le type.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
-Les étapes Fabrication, Récolte Pokémon et Agriculture / Jardinage sont visibles comme emplacements de travail, mais pas encore actives dans l'interface.
+Les étapes Fabrication et Agriculture / Jardinage sont visibles comme emplacements de travail, mais pas encore actives dans l'interface.
 
 ## Installation locale
 
@@ -70,12 +75,25 @@ Flux MVP:
 1. Choisir un Trainer.
 2. Verifier le calcul des PR et choisir le skill PR voulu.
 3. Remplir la semaine ou l'evenement actif.
-4. Choisir `Petit Travail`.
-5. Saisir la description, le skill et le nombre de travaux.
-6. Lancer les des.
-7. Poster le résumé, appliquer les gains si souhaité, puis terminer l'entretien.
+4. Choisir `Petit Travail` ou `Récolte Pokémon`.
+5. Pour `Petit Travail`, saisir la description, le skill et le nombre de travaux, puis lancer les dés.
+6. Pour `Récolte Pokémon`, choisir la récolte, confirmer le Pokémon utilisé, puis confirmer le résultat.
+7. Poster le résumé, appliquer les gains si souhaité, commencer une nouvelle activité avec les PR restants, puis terminer l'entretien.
 
-Par défaut, les changements de fiche ne sont jamais appliqués automatiquement. Le bouton `Appliquer les gains` demande confirmation avant de modifier `system.money`.
+Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bouton `Appliquer les gains` demande confirmation avant de modifier `system.money`. Les Récoltes Pokémon appliquent leur résultat au moment de la confirmation quand l'item ou la RollTable est disponible, sinon le chat indique l'action manuelle à faire.
+
+## Liste de test rapide
+
+- Vérifier que `Récolte Pokémon` est sélectionnable dans l'écran Activité.
+- Confirmer une récolte simple avec un Pokémon détecté, puis vérifier le coût `2 PR` et le résultat dans le chat.
+- Confirmer une récolte simple avec un nom manuel et la case de possession cochée.
+- Tester une récolte RollTable (`Mushroom Harvest`, `Fortune`, `Herb Growth` ou `Pickup`) et vérifier qu'une table est lancée dans le chat.
+- Tester `Fossil Research` avec et sans le feat requis sur le Trainer.
+- Tester `Juicer - Rare Candy` avec et sans l'item Juicer requis.
+- Tester `Nectar Dancer` avec deux Oricorio détectés, puis avec deux noms manuels.
+- Utiliser `Retour` après une récolte confirmée: le résultat doit rester verrouillé et impossible à relancer.
+- Cliquer `Nouvelle activité`: les PR restants doivent être conservés et l'ancienne récolte doit rester dans l'historique.
+- Terminer l'entretien et vérifier que le résumé final contient Petit Travail et Récolte si les deux ont été faits.
 
 ## Configuration MJ
 
@@ -131,6 +149,6 @@ Chemins importants geres:
 ## Prochaines étapes
 
 1. Fabrication avec drag & drop, argent, ingredients reserves et confirmation finale.
-2. Récolte Pokémon avec validation niveau, Friendship et Capability.
+2. Validation automatique plus stricte des capabilities, niveaux et Friendship pour certaines Récoltes Pokémon.
 3. Agriculture / Jardinage avec Planting Stage, Growth Stage, Harvest Stage, Natural Specialty et Yield Rolls.
 4. Panneau MJ d'evenement hebdomadaire avec bonus mecaniques.

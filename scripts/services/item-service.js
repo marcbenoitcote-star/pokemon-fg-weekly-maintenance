@@ -38,6 +38,26 @@ export function hasItemQuantity(actor, itemId, quantity = 1) {
   return getItemQuantity(item) >= Math.max(1, Math.trunc(Number(quantity) || 1));
 }
 
+export function actorHasSourceItem(actor, uuid) {
+  return Boolean(getActorItemBySource(actor, uuid));
+}
+
+export function getActorItemBySource(actor, uuid) {
+  const wanted = normalizeSourceUuid(uuid);
+  if (!actor || !wanted) return null;
+
+  return getActorItems(actor).find((item) => {
+    const candidates = [
+      item.uuid,
+      item.flags?.core?.sourceId,
+      foundry.utils.getProperty(item, "flags.core.sourceId"),
+      item.system?.source,
+      foundry.utils.getProperty(item, "system.source")
+    ];
+    return candidates.some((candidate) => normalizeSourceUuid(candidate) === wanted);
+  }) ?? null;
+}
+
 export async function deductMoney(actor, amount) {
   return adjustMoney(actor, -Math.abs(Number(amount) || 0));
 }
@@ -85,4 +105,12 @@ function getQuantityPath(item) {
 function setQuantity(source, quantity) {
   const path = getQuantityPath(source);
   foundry.utils.setProperty(source, path, quantity);
+}
+
+function getActorItems(actor) {
+  return actor?.items?.contents ?? Array.from(actor?.items ?? []);
+}
+
+function normalizeSourceUuid(value) {
+  return String(value ?? "").trim();
 }

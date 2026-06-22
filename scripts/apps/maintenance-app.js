@@ -3,9 +3,11 @@ import {
   ACTIVITY_KEYS,
   ACTIVITY_OPTIONS,
   DEFAULT_WEEK_DATA,
+  HARVEST_RESULT_TYPES,
   MAINTENANCE_SKILL_KEYS,
   MODULE_ID,
   MODULE_TITLE,
+  POKEMON_HARVEST_OPTIONS,
   SETTINGS,
   TEMPLATES
 } from "../data/constants.js";
@@ -25,7 +27,8 @@ import {
   saveWeek,
   unlockWeek
 } from "../services/calendar-service.js";
-import { addMoney, getMoney } from "../services/item-service.js";
+import { addItemToActor, addMoney, actorHasSourceItem, getMoney } from "../services/item-service.js";
+import { getOwnedPokemonForTrainer } from "../services/pokemon-service.js";
 import { postActivitySummary, postFinalSummary, postRollCard } from "../services/chat-service.js";
 
 const STEPS = [
@@ -66,6 +69,13 @@ export class PfgMaintenanceApp extends Application {
         rolls: [],
         totalGain: 0
       },
+      harvest: {
+        harvestKey: POKEMON_HARVEST_OPTIONS[0]?.key ?? "",
+        pokemonId: "",
+        pokemonName: "",
+        secondPokemonName: "",
+        ownsPokemon: false
+      },
       activities: [],
       currentActivity: null,
       finalized: false
@@ -95,6 +105,7 @@ export class PfgMaintenanceApp extends Application {
     const totalPRQ = pr?.totalPRQ ?? 0;
     const remainingPRQ = Math.max(0, totalPRQ - spentPRQ);
     const workData = this.getWorkData(actor, totalPRQ, spentPRQ);
+    const harvestData = this.getHarvestData(actor, totalPRQ, spentPRQ);
     const activityHistory = plannedActivities.map((activity, index) => ({
       ...activity,
       number: index + 1,
@@ -105,18 +116,20 @@ export class PfgMaintenanceApp extends Application {
       selected: activity.key === this.state.selectedActivity,
       disabled: !activity.enabled
     }));
+    const visibleSteps = getVisibleSteps(this.state);
 
     return {
       moduleId: MODULE_ID,
       title: MODULE_TITLE,
-      steps: STEPS.map((step, index) => ({
+      steps: visibleSteps.map((step, index) => ({
         ...step,
         active: step.key === this.state.step,
-        done: STEPS.findIndex((entry) => entry.key === this.state.step) > index
+        done: visibleSteps.findIndex((entry) => entry.key === this.state.step) > index
       })),
       isTrainerStep: this.state.step === "trainer",
       isPrStep: this.state.step === "pr",
       isActivityStep: this.state.step === "activity",
+      isHarvestStep: this.state.step === "harvest",
       isWorkStep: this.state.step === "work",
       isSummaryStep: this.state.step === "summary",
       hasTrainers: trainers.length > 0,
@@ -152,13 +165,14 @@ export class PfgMaintenanceApp extends Application {
       activityOptions,
       strictActivityMode: setting(SETTINGS.strictActivityMode, true),
       work: workData,
+      harvest: harvestData,
       activities: plannedActivities,
       activityHistory,
       hasActivityHistory: activityHistory.length > 0,
       currentActivity: this.state.currentActivity,
       currentActivityRolls: this.state.currentActivity?.rolls ?? [],
       hasCurrentActivity: Boolean(this.state.currentActivity),
-      canStartAnotherActivity: Boolean(actor && this.state.currentActivity && !weekLocked && remainingPRQ >= ACTIVITY_COSTS_PRQ.work),
+      canStartAnotherActivity: Boolean(actor && this.state.currentActivity && !weekLocked && remainingPRQ >= getCheapestEnabledActivityCost()),
       finalized: this.state.finalized
     };
   }
@@ -185,11 +199,11 @@ export class PfgMaintenanceApp extends Application {
       this.render(false);
     });
 
-    html.on("input", "input[name='weekName'], input[name='rpDate'], input[name='eventName'], textarea[name='eventDescription'], input[name='workDescription']", (event) => {
+    html.on("input", "input[name='weekName'], input[name='rpDate'], input[name='eventName'], textarea[name='eventDescription'], input[name='workDescription'], input[name='harvestPokemonName'], input[name='harvestSecondPokemonName']", (event) => {
       this.updateFieldState(event.currentTarget);
     });
 
-    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon']", (event) => {
       this.updateFieldState(event.currentTarget);
       this.render(false);
     });
@@ -237,12 +251,18 @@ export class PfgMaintenanceApp extends Application {
     }
 
     if (action === "to-work") {
-      if (this.state.selectedActivity !== ACTIVITY_KEYS.work) {
-        ui.notifications.info("Cette activité sera ajoutée dans une prochaine étape du module.");
+      if (this.state.selectedActivity === ACTIVITY_KEYS.work) {
+        this.state.step = "work";
+        this.render(false);
         return;
       }
-      this.state.step = "work";
-      this.render(false);
+      if (this.state.selectedActivity === ACTIVITY_KEYS.pokemonHarvest) {
+        this.state.step = "harvest";
+        this.render(false);
+        return;
+      }
+
+      ui.notifications.info("Cette activité sera ajoutée dans une prochaine étape du module.");
       return;
     }
 
@@ -255,6 +275,11 @@ export class PfgMaintenanceApp extends Application {
 
     if (action === "roll-work") {
       await this.rollWork();
+      return;
+    }
+
+    if (action === "roll-harvest") {
+      await this.confirmHarvest();
       return;
     }
 
@@ -310,6 +335,15 @@ export class PfgMaintenanceApp extends Application {
     if (data.has("workDescription")) this.state.work.description = stringValue(data.get("workDescription"));
     if (data.has("workSkillKey")) this.state.work.skillKey = normalizeMaintenanceSkill(data.get("workSkillKey"), this.state.work.skillKey);
     if (data.has("workCount")) this.state.work.count = readPositiveCount(data.get("workCount"), this.state.work.count);
+    if (data.has("harvestKey")) this.state.harvest.harvestKey = normalizeHarvestKey(data.get("harvestKey"), this.state.harvest.harvestKey);
+    if (data.has("harvestPokemonId")) {
+      this.state.harvest.pokemonId = normalizeActorKey(data.get("harvestPokemonId"));
+      const pokemon = getPokemonByKey(this.actor, this.state.harvest.pokemonId);
+      if (pokemon) this.state.harvest.pokemonName = pokemon.name;
+    }
+    if (data.has("harvestPokemonName")) this.state.harvest.pokemonName = stringValue(data.get("harvestPokemonName"));
+    if (data.has("harvestSecondPokemonName")) this.state.harvest.secondPokemonName = stringValue(data.get("harvestSecondPokemonName"));
+    if (form.querySelector?.("[name='harvestOwnsPokemon']")) this.state.harvest.ownsPokemon = data.has("harvestOwnsPokemon");
   }
 
   updateFieldState(field) {
@@ -326,6 +360,15 @@ export class PfgMaintenanceApp extends Application {
     if (name === "workDescription") this.state.work.description = stringValue(field.value);
     if (name === "workSkillKey") this.state.work.skillKey = normalizeMaintenanceSkill(field.value, this.state.work.skillKey);
     if (name === "workCount") this.state.work.count = readPositiveCount(field.value, this.state.work.count);
+    if (name === "harvestKey") this.state.harvest.harvestKey = normalizeHarvestKey(field.value, this.state.harvest.harvestKey);
+    if (name === "harvestPokemonId") {
+      this.state.harvest.pokemonId = normalizeActorKey(field.value);
+      const pokemon = getPokemonByKey(this.actor, this.state.harvest.pokemonId);
+      if (pokemon) this.state.harvest.pokemonName = pokemon.name;
+    }
+    if (name === "harvestPokemonName") this.state.harvest.pokemonName = stringValue(field.value);
+    if (name === "harvestSecondPokemonName") this.state.harvest.secondPokemonName = stringValue(field.value);
+    if (name === "harvestOwnsPokemon") this.state.harvest.ownsPokemon = Boolean(field.checked);
   }
 
   getWorkData(actor, totalPRQ, spentPRQ) {
@@ -361,6 +404,75 @@ export class PfgMaintenanceApp extends Application {
       canRoll: Boolean(actor && maxCount > 0 && !lockedActivity),
       rolls: this.state.work.rolls ?? [],
       totalGain: this.state.work.totalGain ?? 0
+    };
+  }
+
+  getHarvestData(actor, totalPRQ, spentPRQ) {
+    const lockedActivity = this.state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest ? this.state.currentActivity : null;
+    const harvestKey = normalizeHarvestKey(lockedActivity?.harvestKey ?? this.state.harvest.harvestKey);
+    this.state.harvest.harvestKey = harvestKey;
+    const selectedOption = getHarvestOption(harvestKey);
+    const remainingBefore = Math.max(0, totalPRQ - spentPRQ);
+    const selectedPokemonId = lockedActivity?.pokemonId ?? this.state.harvest.pokemonId;
+    const selectedPokemon = actor && !lockedActivity ? getPokemonByKey(actor, selectedPokemonId) : null;
+    const pokemonOptions = getPokemonOptions(actor, selectedPokemonId);
+    const detectedPokemonName = selectedPokemon?.name ?? "";
+    const detectedOricorioNames = actor ? getOwnedPokemonForTrainer(actor)
+      .filter((pokemon) => pokemonLooksLikeSpecies(pokemon, "oricorio"))
+      .map((pokemon) => pokemon.name)
+      .filter(Boolean) : [];
+    const pokemonName = lockedActivity
+      ? (lockedActivity.pokemonName ?? "")
+      : (this.state.harvest.pokemonName || (selectedOption?.requiresTwoOricorio ? detectedOricorioNames[0] : detectedPokemonName) || "");
+    const secondPokemonName = lockedActivity
+      ? (lockedActivity.secondPokemonName ?? "")
+      : (this.state.harvest.secondPokemonName || (selectedOption?.requiresTwoOricorio ? detectedOricorioNames[1] : "") || "");
+    const ownsPokemon = lockedActivity ? true : Boolean(selectedPokemon || detectedOricorioNames.length >= 2 || this.state.harvest.ownsPokemon);
+    const requirementErrors = lockedActivity ? [] : getHarvestRequirementErrors(actor, selectedOption, {
+      pokemonName,
+      secondPokemonName,
+      ownsPokemon,
+      selectedPokemon,
+      detectedOricorioNames,
+      remainingBefore
+    });
+    const costPRQ = lockedActivity?.costPRQ ?? selectedOption?.costPRQ ?? 0;
+
+    return {
+      ...this.state.harvest,
+      harvestKey,
+      pokemonId: selectedPokemonId,
+      pokemonName,
+      secondPokemonName,
+      ownsPokemon,
+      selectedOption: selectedOption ? {
+        ...selectedOption,
+        costLabel: formatPRQ(selectedOption.costPRQ),
+        resultTypeLabel: getHarvestResultTypeLabel(selectedOption.resultType)
+      } : null,
+      options: POKEMON_HARVEST_OPTIONS.map((option) => ({
+        ...option,
+        selected: option.key === harvestKey,
+        costLabel: formatPRQ(option.costPRQ),
+        resultTypeLabel: getHarvestResultTypeLabel(option.resultType),
+        insufficientPR: option.costPRQ > remainingBefore && !lockedActivity
+      })),
+      pokemonOptions,
+      hasPokemonOptions: pokemonOptions.length > 0,
+      detectedOricorioNames,
+      detectedOricorioLabel: detectedOricorioNames.join(", "),
+      costPRQ,
+      costLabel: lockedActivity?.costLabel ?? formatPRQ(costPRQ),
+      remainingBefore,
+      remainingBeforeLabel: formatPRQ(remainingBefore),
+      remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - (lockedActivity ? 0 : costPRQ))),
+      requiresSecondPokemon: Boolean(selectedOption?.requiresTwoOricorio),
+      locked: Boolean(lockedActivity),
+      lockedResultStatus: lockedActivity?.resultStatus ?? "",
+      lockedResultLabel: lockedActivity?.resultLabel ?? "",
+      requirementErrors,
+      hasRequirementErrors: requirementErrors.length > 0,
+      canHarvest: Boolean(actor && selectedOption && !lockedActivity && requirementErrors.length === 0)
     };
   }
 
@@ -440,6 +552,116 @@ export class PfgMaintenanceApp extends Application {
     this.render(false);
   }
 
+  async confirmHarvest() {
+    const actor = this.actor;
+    if (!actor) return;
+
+    if (this.state.currentActivity) {
+      ui.notifications.warn("Une activité a déjà été confirmée. Le résultat est conservé dans l'historique.");
+      this.state.step = "summary";
+      this.render(false);
+      return;
+    }
+
+    const data = this.getData();
+    const harvest = data.harvest;
+    if (!harvest.canHarvest) {
+      ui.notifications.warn(harvest.requirementErrors?.[0] ?? "Récolte Pokémon impossible avec les données actuelles.");
+      return;
+    }
+
+    const option = harvest.selectedOption;
+    const result = await this.applyHarvestResult(actor, option);
+    const pokemonNames = [harvest.pokemonName, harvest.requiresSecondPokemon ? harvest.secondPokemonName : ""]
+      .map((name) => stringValue(name))
+      .filter(Boolean);
+    const pokemonNamesLabel = pokemonNames.join(", ") || "Pokémon confirmé";
+    const activity = {
+      key: ACTIVITY_KEYS.pokemonHarvest,
+      isHarvest: true,
+      title: "Récolte Pokémon",
+      description: option.label,
+      harvestKey: option.key,
+      harvestLabel: option.label,
+      harvestCategory: option.category,
+      pokemonId: harvest.pokemonId,
+      pokemonName: harvest.pokemonName,
+      secondPokemonName: harvest.requiresSecondPokemon ? harvest.secondPokemonName : "",
+      pokemonNames: pokemonNamesLabel,
+      costPRQ: option.costPRQ,
+      costLabel: formatPRQ(option.costPRQ),
+      resultType: option.resultType,
+      resultTypeLabel: getHarvestResultTypeLabel(option.resultType),
+      resultUuid: option.resultUuid ?? "",
+      resultLabel: option.resultLabel ?? option.label,
+      resultStatus: result.status,
+      resultApplied: result.applied,
+      summaryLine: `${option.label} avec ${pokemonNamesLabel}: ${option.resultLabel ?? "résultat à gérer"}`,
+      rolls: [],
+      totalGain: 0,
+      moneyDelta: 0,
+      applied: true
+    };
+
+    this.state.activities.push(activity);
+    this.state.currentActivity = activity;
+    const totals = this.getTotals();
+
+    await postActivitySummary({
+      actor,
+      activity,
+      activities: [activity],
+      calendar: getCurrentWeekData(this.state.calendar),
+      totalPRLabel: formatPRQ(totals.totalPRQ),
+      spentPRLabel: formatPRQ(totals.spentPRQ),
+      remainingPRLabel: formatPRQ(totals.remainingPRQ),
+      isActivity: true
+    });
+
+    ui.notifications.info("Récolte Pokémon confirmée et ajoutée à l'historique.");
+    this.state.step = "summary";
+    this.render(false);
+  }
+
+  async applyHarvestResult(actor, option) {
+    if (!option) return { applied: false, status: "Récolte inconnue." };
+
+    try {
+      if (option.resultType === HARVEST_RESULT_TYPES.item) {
+        if (!option.resultUuid) return { applied: false, status: "Item manquant: à ajouter manuellement." };
+        if (!(actor.isOwner || game.user?.isGM)) {
+          return { applied: false, status: "Item non ajouté: permission insuffisante. À ajouter manuellement." };
+        }
+        if (!globalThis.fromUuid) return { applied: false, status: "fromUuid indisponible: à ajouter manuellement." };
+
+        const item = await globalThis.fromUuid(option.resultUuid);
+        if (!item) return { applied: false, status: `${option.resultLabel} introuvable: à ajouter manuellement.` };
+
+        const created = await addItemToActor(actor, item, 1);
+        return {
+          applied: Boolean(created),
+          status: created ? `${created.name ?? option.resultLabel} ajouté à l'inventaire.` : `${option.resultLabel} à ajouter manuellement.`
+        };
+      }
+
+      if (option.resultType === HARVEST_RESULT_TYPES.rollTable) {
+        if (!option.resultUuid) return { applied: false, status: "Table manquante: à lancer manuellement." };
+        if (!globalThis.fromUuid) return { applied: false, status: "fromUuid indisponible: table à lancer manuellement." };
+
+        const table = await globalThis.fromUuid(option.resultUuid);
+        if (!table?.draw) return { applied: false, status: `${option.resultLabel} introuvable: table à lancer manuellement.` };
+
+        await table.draw({ displayChat: true });
+        return { applied: true, status: `${option.resultLabel} lancée dans le chat.` };
+      }
+
+      return { applied: true, status: option.resultLabel ?? "Information postée dans le chat." };
+    } catch (error) {
+      console.error(`${MODULE_ID} | Récolte Pokémon impossible.`, error);
+      return { applied: false, status: `${option.resultLabel ?? option.label} à appliquer manuellement (${error.message ?? error}).` };
+    }
+  }
+
   async postCurrentActivity() {
     const actor = this.actor;
     const activity = this.state.currentActivity;
@@ -499,14 +721,15 @@ export class PfgMaintenanceApp extends Application {
     }
 
     const totals = this.getTotals();
-    if (totals.remainingPRQ < ACTIVITY_COSTS_PRQ.work) {
-      ui.notifications.warn("PR insuffisants pour commencer un autre Petit Travail.");
+    if (totals.remainingPRQ < getCheapestEnabledActivityCost()) {
+      ui.notifications.warn("PR insuffisants pour commencer une autre activité.");
       this.render(false);
       return;
     }
 
     this.state.currentActivity = null;
     this.resetWorkState();
+    this.resetHarvestState();
     this.state.step = "activity";
     this.render(false);
   }
@@ -594,14 +817,25 @@ export class PfgMaintenanceApp extends Application {
   }
 
   goBack() {
-    const order = STEPS.map((step) => step.key);
-    const index = order.indexOf(this.state.step);
-    this.state.step = order[Math.max(0, index - 1)] ?? "trainer";
+    if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest) {
+      this.state.step = "harvest";
+    } else if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.work) {
+      this.state.step = "work";
+    } else if (this.state.step === "work" || this.state.step === "harvest") {
+      this.state.step = "activity";
+    } else if (this.state.step === "activity") {
+      this.state.step = "pr";
+    } else if (this.state.step === "pr") {
+      this.state.step = "trainer";
+    } else {
+      this.state.step = "trainer";
+    }
     this.render(false);
   }
 
   resetActivityState(skillKey = this.state.prSkillKey) {
     this.resetWorkState(skillKey);
+    this.resetHarvestState();
     this.state.activities = [];
     this.state.currentActivity = null;
     this.state.finalized = false;
@@ -615,6 +849,16 @@ export class PfgMaintenanceApp extends Application {
       count: 1,
       rolls: [],
       totalGain: 0
+    };
+  }
+
+  resetHarvestState() {
+    this.state.harvest = {
+      harvestKey: POKEMON_HARVEST_OPTIONS[0]?.key ?? "",
+      pokemonId: "",
+      pokemonName: "",
+      secondPokemonName: "",
+      ownsPokemon: false
     };
   }
 
@@ -637,6 +881,132 @@ export class PfgMaintenanceApp extends Application {
       trainerCount: getAvailableTrainers().length
     });
   }
+}
+
+function getVisibleSteps(state) {
+  const actionStep = state.step === "harvest"
+    || state.selectedActivity === ACTIVITY_KEYS.pokemonHarvest
+    || state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest
+    ? { key: "harvest", label: "Récolte" }
+    : { key: "work", label: "Petit Travail" };
+
+  return [
+    STEPS[0],
+    STEPS[1],
+    STEPS[2],
+    actionStep,
+    STEPS[4]
+  ];
+}
+
+function getCheapestEnabledActivityCost() {
+  const enabledKeys = new Set(ACTIVITY_OPTIONS.filter((option) => option.enabled).map((option) => option.key));
+  const costs = [];
+  if (enabledKeys.has(ACTIVITY_KEYS.work)) costs.push(ACTIVITY_COSTS_PRQ.work);
+  if (enabledKeys.has(ACTIVITY_KEYS.pokemonHarvest)) {
+    costs.push(...POKEMON_HARVEST_OPTIONS.map((option) => option.costPRQ));
+  }
+  return Math.min(...costs.filter((cost) => Number.isFinite(cost) && cost > 0), ACTIVITY_COSTS_PRQ.work);
+}
+
+function getHarvestOption(key) {
+  return POKEMON_HARVEST_OPTIONS.find((option) => option.key === key) ?? POKEMON_HARVEST_OPTIONS[0] ?? null;
+}
+
+function normalizeHarvestKey(value, fallback = POKEMON_HARVEST_OPTIONS[0]?.key ?? "") {
+  const key = stringValue(value);
+  if (POKEMON_HARVEST_OPTIONS.some((option) => option.key === key)) return key;
+  if (POKEMON_HARVEST_OPTIONS.some((option) => option.key === fallback)) return fallback;
+  return POKEMON_HARVEST_OPTIONS[0]?.key ?? "";
+}
+
+function getHarvestResultTypeLabel(resultType) {
+  if (resultType === HARVEST_RESULT_TYPES.item) return "Item";
+  if (resultType === HARVEST_RESULT_TYPES.rollTable) return "RollTable";
+  return "Info chat";
+}
+
+function getPokemonOptions(actor, selectedId) {
+  if (!actor) return [];
+  return getOwnedPokemonForTrainer(actor).map((pokemon) => {
+    const id = getActorKey(pokemon);
+    return {
+      id,
+      name: pokemon.name,
+      selected: id === selectedId
+    };
+  });
+}
+
+function getPokemonByKey(actor, pokemonKey) {
+  const key = normalizeActorKey(pokemonKey);
+  if (!actor || !key) return null;
+  return getOwnedPokemonForTrainer(actor).find((pokemon) => getActorKey(pokemon) === key) ?? null;
+}
+
+function getHarvestRequirementErrors(actor, option, context) {
+  const errors = [];
+  if (!actor) errors.push("Choisis un Trainer avant de faire une récolte.");
+  if (!option) return ["Récolte inconnue."];
+
+  if (context.remainingBefore < option.costPRQ) {
+    errors.push(`PR insuffisants: ${formatPRQ(option.costPRQ)} requis.`);
+  }
+
+  if (option.requiresFeatUuid && !actorHasSourceItem(actor, option.requiresFeatUuid)) {
+    errors.push("Fossil Research demande le feat requis sur la fiche du Trainer.");
+  }
+
+  if (option.requiresItemUuid && !actorHasSourceItem(actor, option.requiresItemUuid)) {
+    errors.push("Juicer - Rare Candy demande le Juicer requis dans l'inventaire du Trainer.");
+  }
+
+  if (option.requiresTwoOricorio) {
+    const manualNames = [context.pokemonName, context.secondPokemonName].map((name) => stringValue(name)).filter(Boolean);
+    if (context.detectedOricorioNames.length < 2 && !(context.ownsPokemon && manualNames.length >= 2)) {
+      errors.push("Nectar Dancer demande 2 Oricorio valides. Sélectionne-les si détectés, ou confirme la possession et indique les deux noms.");
+    }
+    return errors;
+  }
+
+  if (!context.ownsPokemon && !context.selectedPokemon) {
+    errors.push("Confirme que tu possèdes le Pokémon qui permet cette récolte.");
+  }
+
+  if (!stringValue(context.pokemonName) && !context.selectedPokemon?.name) {
+    errors.push("Indique le nom du Pokémon utilisé pour cette récolte.");
+  }
+
+  return errors;
+}
+
+function pokemonLooksLikeSpecies(pokemon, speciesName) {
+  const wanted = normalizeSearchText(speciesName);
+  const candidates = [
+    pokemon?.name,
+    foundry.utils.getProperty(pokemon, "system.species"),
+    foundry.utils.getProperty(pokemon, "system.species.name"),
+    foundry.utils.getProperty(pokemon, "system.species.slug"),
+    foundry.utils.getProperty(pokemon, "system.pokemon.species"),
+    foundry.utils.getProperty(pokemon, "system.dex.species")
+  ];
+
+  const itemCandidates = (pokemon?.items?.contents ?? Array.from(pokemon?.items ?? []))
+    .filter((item) => item.type === "species" || item.type === "pokemon")
+    .flatMap((item) => [item.name, item.slug, item.system?.slug]);
+
+  return [...candidates, ...itemCandidates]
+    .map((candidate) => normalizeSearchText(candidate))
+    .some((candidate) => candidate.includes(wanted));
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function getAvailableTrainers() {

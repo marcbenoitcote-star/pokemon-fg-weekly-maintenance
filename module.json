@@ -1,16 +1,16 @@
 {
   "id": "pokemon-fg-weekly-maintenance",
   "title": "Pokémon FG - Entretien Hebdomadaire",
-  "description": "Assistant d'entretien hebdomadaire pour Pokémon Tabletop Reunited / PTR 1e: calcul des PR, Petit Travail, résumés chat et verrouillage par semaine.",
+  "description": "Assistant d'entretien hebdomadaire pour Pokémon Tabletop Reunited / PTR 1e: calcul des PR, Petit Travail, Récolte Pokémon, résumés chat et verrouillage par semaine.",
   "authors": [
     {
       "name": "Pokemon PTU Custom Server"
     }
   ],
-  "version": "0.1.6",
+  "version": "0.1.7",
   "url": "https://github.com/marcbenoitcote-star/pokemon-fg-weekly-maintenance",
   "manifest": "https://github.com/marcbenoitcote-star/pokemon-fg-weekly-maintenance/releases/latest/download/module.json",
-  "download": "https://github.com/marcbenoitcote-star/pokemon-fg-weekly-maintenance/releases/download/v0.1.6/module.zip",
+  "download": "https://github.com/marcbenoitcote-star/pokemon-fg-weekly-maintenance/releases/download/v0.1.7/module.zip",
   "compatibility": {
     "minimum": "13.345",
     "verified": "13.350"

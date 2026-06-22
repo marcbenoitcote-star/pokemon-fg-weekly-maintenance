@@ -14,34 +14,55 @@
     <h4>Activités</h4>
     <ol>
       {{#each activities}}
-        <li>{{title}} - {{totalGain}}₽ gagnés, coût {{costLabel}}</li>
+        {{#if isHarvest}}
+          <li>{{title}} - {{summaryLine}}, coût {{costLabel}}</li>
+        {{else}}
+          <li>{{title}} - {{totalGain}}₽ gagnés, coût {{costLabel}}</li>
+        {{/if}}
       {{/each}}
     </ol>
     <h4>Modifications</h4>
     <ul>
       {{#each activities}}
-        {{#if applied}}
-          <li>Argent: +{{moneyDelta}}₽ appliqué</li>
+        {{#if isHarvest}}
+          <li>Récolte: {{resultStatus}}</li>
         {{else}}
-          <li>Argent: +{{totalGain}}₽ non appliqué</li>
+          {{#if applied}}
+            <li>Argent: +{{moneyDelta}}₽ appliqué</li>
+          {{else}}
+            <li>Argent: +{{totalGain}}₽ non appliqué</li>
+          {{/if}}
         {{/if}}
       {{/each}}
     </ul>
   {{else}}
-    <h3>Petit Travail Hebdomadaire - {{actor.name}}</h3>
-    <p><strong>Travail:</strong> {{activity.description}}</p>
-    <p><strong>Skill:</strong> {{activity.skillLabel}} - {{activity.skillRankLabel}}</p>
-    {{#if activity.skillTotalDetail}}
-      <p><strong>Total skill:</strong> {{activity.skillTotalDetail}}; {{activity.skillDiceFormula}}</p>
+    {{#if activity.isHarvest}}
+      <h3>Récolte Pokémon - {{actor.name}}</h3>
+      <p><strong>Récolte:</strong> {{activity.harvestLabel}} ({{activity.harvestCategory}})</p>
+      <p><strong>Pokémon:</strong> {{activity.pokemonNames}}</p>
+      <p><strong>Cout:</strong> {{activity.costLabel}}</p>
+      <p><strong>Résultat:</strong> {{activity.resultLabel}} - {{activity.resultTypeLabel}}</p>
+      {{#if activity.resultUuid}}
+        <p><strong>UUID:</strong> {{activity.resultUuid}}</p>
+      {{/if}}
+      <p><strong>Statut:</strong> {{activity.resultStatus}}</p>
+      <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+    {{else}}
+      <h3>Petit Travail Hebdomadaire - {{actor.name}}</h3>
+      <p><strong>Travail:</strong> {{activity.description}}</p>
+      <p><strong>Skill:</strong> {{activity.skillLabel}} - {{activity.skillRankLabel}}</p>
+      {{#if activity.skillTotalDetail}}
+        <p><strong>Total skill:</strong> {{activity.skillTotalDetail}}; {{activity.skillDiceFormula}}</p>
+      {{/if}}
+      <p><strong>Nombre de travaux:</strong> {{activity.count}}</p>
+      <p><strong>Cout:</strong> {{activity.costLabel}}</p>
+      <ol>
+        {{#each activity.rolls}}
+          <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
+        {{/each}}
+      </ol>
+      <p><strong>Total gagné:</strong> {{activity.totalGain}}₽</p>
+      <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
     {{/if}}
-    <p><strong>Nombre de travaux:</strong> {{activity.count}}</p>
-    <p><strong>Cout:</strong> {{activity.costLabel}}</p>
-    <ol>
-      {{#each activity.rolls}}
-        <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
-      {{/each}}
-    </ol>
-    <p><strong>Total gagné:</strong> {{activity.totalGain}}₽</p>
-    <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
   {{/if}}
 </div>

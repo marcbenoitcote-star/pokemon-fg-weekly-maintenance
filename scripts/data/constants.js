@@ -37,6 +37,7 @@ export const ACTIVITY_COSTS_PRQ = {
   normalCraft: 1,
   equipmentCraft: 4,
   simplePokemonHarvest: 8,
+  professionalPokemonHarvest: 12,
   advancedPokemonHarvest: 16,
   rarePokemonHarvest: 36,
   gardenHarvest: 1
@@ -121,7 +122,7 @@ export const ACTIVITY_OPTIONS = [
     icon: "fas fa-leaf",
     title: "Récolte Pokémon",
     description: "Validation Pokémon, Friendship, niveau et Capability.",
-    enabled: false
+    enabled: true
   },
   {
     key: ACTIVITY_KEYS.gardening,
@@ -138,3 +139,129 @@ export const DEFAULT_WEEK_DATA = {
   eventName: "",
   eventDescription: ""
 };
+
+export const HARVEST_RESULT_TYPES = {
+  item: "item",
+  rollTable: "rollTable",
+  info: "info"
+};
+
+export const POKEMON_HARVEST_OPTIONS = [
+  {
+    key: "honeyGather",
+    label: "Honey Gather",
+    category: "Récolte simple",
+    costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.item,
+    resultUuid: "Compendium.ptu.items.Item.Op2TZv6Qoz4Y65e2",
+    resultLabel: "Honey"
+  },
+  {
+    key: "mushroomHarvest",
+    label: "Mushroom Harvest",
+    category: "Récolte simple",
+    costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.rollTable,
+    resultUuid: "Compendium.ptu.rolltables.RollTable.Jz0g9IlGs00xj9u4",
+    resultLabel: "Table Mushroom Harvest"
+  },
+  {
+    key: "dreamMist",
+    label: "Dream Mist",
+    category: "Récolte simple",
+    costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.item,
+    resultUuid: "Compendium.ptu.items.Item.xQ0rqoDEsPAR4uP8",
+    resultLabel: "Dream Mist"
+  },
+  {
+    key: "milkCollection",
+    label: "Milk Collection",
+    category: "Récolte simple",
+    costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.item,
+    resultUuid: "Compendium.ptu.items.Item.YswiehoUnTqeuvg2",
+    resultLabel: "Milk"
+  },
+  {
+    key: "fortune",
+    label: "Fortune",
+    category: "Récolte simple",
+    costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.rollTable,
+    resultUuid: "Compendium.ptu.rolltables.RollTable.QEnQIcCZMSLbQhwh",
+    resultLabel: "Table Fortune"
+  },
+  {
+    key: "herbGrowth",
+    label: "Herb Growth",
+    category: "Récolte simple",
+    costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.rollTable,
+    resultUuid: "Compendium.ptu.rolltables.RollTable.hKHeP9ynrhTGSY21",
+    resultLabel: "Table Herb Growth"
+  },
+  {
+    key: "juicerJuice",
+    label: "Juicer - Jus seulement",
+    category: "Récolte simple",
+    costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.item,
+    resultUuid: "Compendium.ptu.items.Item.7fMNsUfMhbr6ZB8W",
+    resultLabel: "Juicer / Jus"
+  },
+  {
+    key: "fossilResearch",
+    label: "Fossil Research",
+    category: "Récolte professionnelle",
+    costPRQ: ACTIVITY_COSTS_PRQ.professionalPokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.info,
+    resultLabel: "Recherche fossile à gérer selon la table",
+    requiresFeatUuid: "Compendium.ptu.feats.Item.DNptPA26NZ8dpwcc"
+  },
+  {
+    key: "nectarDancer",
+    label: "Nectar Dancer",
+    category: "Récolte avancée",
+    costPRQ: ACTIVITY_COSTS_PRQ.advancedPokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.info,
+    resultLabel: "Aucun item valide actuel; noter la récolte dans le chat",
+    requiresTwoOricorio: true
+  },
+  {
+    key: "pickup",
+    label: "Pickup",
+    category: "Récolte avancée",
+    costPRQ: ACTIVITY_COSTS_PRQ.advancedPokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.rollTable,
+    resultUuid: "Compendium.ptu.rolltables.RollTable.s0b5aT318cnMx8fX",
+    resultLabel: "Table Pickup"
+  },
+  {
+    key: "juicerRareCandy",
+    label: "Juicer - Rare Candy",
+    category: "Récolte avancée",
+    costPRQ: ACTIVITY_COSTS_PRQ.advancedPokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.item,
+    resultUuid: "Compendium.ptu.items.Item.35X4PEOomwgAFvwa",
+    resultLabel: "Rare Candy",
+    requiresItemUuid: "Compendium.ptu.items.Item.7fMNsUfMhbr6ZB8W"
+  },
+  {
+    key: "heartGift",
+    label: "Heart Gift",
+    category: "Récolte avancée",
+    costPRQ: ACTIVITY_COSTS_PRQ.advancedPokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.item,
+    resultUuid: "Compendium.ptu.items.Item.MVgde5bSqt7dgxDk",
+    resultLabel: "Heart Scale / Heart Gift"
+  },
+  {
+    key: "gatherUnown",
+    label: "Gather Unown",
+    category: "Récolte très rare",
+    costPRQ: ACTIVITY_COSTS_PRQ.rarePokemonHarvest,
+    resultType: HARVEST_RESULT_TYPES.info,
+    resultLabel: "Information uniquement dans le chat"
+  }
+];
