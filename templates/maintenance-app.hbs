@@ -228,6 +228,134 @@
     </footer>
   {{/if}}
 
+  {{#if isCraftingStep}}
+    <section class="pfg-panel">
+      <h3>Fabrication</h3>
+
+      <button type="button" data-action="open-crafting-journal">
+        <i class="fas fa-book-open"></i>
+        Journal de fabrication
+      </button>
+
+      <div class="pfg-drop-zone {{#if crafting.itemName}}ready{{/if}}" data-drop-target="craftResult">
+        <i class="fas fa-box"></i>
+        <span>
+          <strong>Objet final à fabriquer</strong>
+          {{#if crafting.itemName}}
+            <small>{{crafting.itemName}}</small>
+          {{else}}
+            <small>Glisser l'objet final depuis un compendium ou la sidebar Items.</small>
+          {{/if}}
+        </span>
+      </div>
+
+      <div class="pfg-two-cols">
+        <label>
+          Type
+          <select name="craftType" {{#if crafting.locked}}disabled{{/if}}>
+            {{#each crafting.typeOptions}}
+              <option value="{{key}}" {{#if selected}}selected{{/if}} {{#if disabled}}disabled{{/if}}>{{label}} - {{costLabel}}</option>
+            {{/each}}
+          </select>
+        </label>
+        <label>
+          Quantité
+          <input type="number" name="craftQuantity" min="1" step="1" value="{{crafting.quantity}}" {{#if crafting.locked}}disabled{{/if}}>
+        </label>
+      </div>
+
+      <div class="pfg-two-cols">
+        <label>
+          Coût Pokédollars
+          <input type="number" name="craftMoneyValue" min="0" step="1" value="{{crafting.moneyValue}}" {{#if crafting.locked}}disabled{{/if}}>
+        </label>
+        <div class="pfg-inline-options">
+          <label class="pfg-check">
+            <input type="radio" name="craftMoneyMode" value="total" {{#unless crafting.moneyModeUnit}}checked{{/unless}} {{#if crafting.locked}}disabled{{/if}}>
+            Coût total
+          </label>
+          <label class="pfg-check">
+            <input type="radio" name="craftMoneyMode" value="unit" {{#if crafting.moneyModeUnit}}checked{{/if}} {{#if crafting.locked}}disabled{{/if}}>
+            Coût unitaire
+          </label>
+        </div>
+      </div>
+
+      <dl class="pfg-dl">
+        <div>
+          <dt>Coût PR</dt>
+          <dd>{{crafting.costLabel}}</dd>
+        </div>
+        <div>
+          <dt>Coût Pokédollars</dt>
+          <dd>{{crafting.moneyCostLabel}}</dd>
+        </div>
+        <div>
+          <dt>Restants après</dt>
+          <dd>{{crafting.remainingAfterLabel}}</dd>
+        </div>
+      </dl>
+
+      <div class="pfg-drop-zone" data-drop-target="craftIngredient">
+        <i class="fas fa-flask"></i>
+        <span>
+          <strong>Ingrédients requis</strong>
+          <small>Glisser les ingrédients depuis l'inventaire du Trainer. Ils sont réservés et seront retirés seulement à la confirmation.</small>
+        </span>
+      </div>
+
+      {{#if crafting.hasIngredients}}
+        <div class="pfg-ingredient-list">
+          {{#each crafting.ingredients}}
+            <div class="pfg-ingredient-row {{#unless enough}}missing{{/unless}}">
+              <strong>{{name}}</strong>
+              <label>
+                Qté
+                <input type="number" name="craftIngredientQuantity:{{entryId}}" min="1" step="1" value="{{quantity}}" {{#if ../crafting.locked}}disabled{{/if}}>
+              </label>
+              <span>Disponible: {{availableQuantity}}</span>
+              <button type="button" data-action="remove-craft-ingredient" data-entry-id="{{entryId}}" title="Retirer l'ingrédient" {{#if ../crafting.locked}}disabled{{/if}}>
+                <i class="fas fa-xmark"></i>
+              </button>
+            </div>
+          {{/each}}
+        </div>
+      {{else}}
+        <p class="pfg-note">Aucun ingrédient réservé.</p>
+      {{/if}}
+
+      {{#if crafting.locked}}
+        <p class="pfg-success">{{currentActivity.resultStatus}}</p>
+      {{else}}
+        {{#if crafting.hasRequirementErrors}}
+          <ul class="pfg-warning pfg-errors">
+            {{#each crafting.requirementErrors}}
+              <li>{{this}}</li>
+            {{/each}}
+          </ul>
+        {{/if}}
+      {{/if}}
+    </section>
+
+    <footer class="pfg-actions">
+      <button type="button" data-action="back">
+        <i class="fas fa-arrow-left"></i>
+        Retour
+      </button>
+      {{#if crafting.locked}}
+        <button type="button" data-action="to-summary">
+          <i class="fas fa-list-check"></i>
+          Voir résumé
+        </button>
+      {{else}}
+        <button type="button" data-action="confirm-crafting" {{#unless crafting.canCraft}}disabled{{/unless}}>
+          <i class="fas fa-hammer"></i>
+          Confirmer
+        </button>
+      {{/if}}
+    </footer>
+  {{/if}}
+
   {{#if isHarvestStep}}
     <section class="pfg-panel">
       <h3>Récolte Pokémon</h3>
@@ -462,6 +590,39 @@
     <section class="pfg-panel">
       <h3>Résumé activité</h3>
       {{#if hasCurrentActivity}}
+        {{#if currentActivity.isCrafting}}
+          <dl class="pfg-dl">
+            <div>
+              <dt>Activité</dt>
+              <dd>{{currentActivity.title}}</dd>
+            </div>
+            <div>
+              <dt>Objet fabriqué</dt>
+              <dd>{{currentActivity.itemName}} × {{currentActivity.quantity}}</dd>
+            </div>
+            <div>
+              <dt>Type</dt>
+              <dd>{{currentActivity.craftTypeLabel}}</dd>
+            </div>
+            <div>
+              <dt>Coût PR</dt>
+              <dd>{{currentActivity.costLabel}}</dd>
+            </div>
+            <div>
+              <dt>Coût Pokédollars</dt>
+              <dd>{{currentActivity.moneyCostLabel}}</dd>
+            </div>
+          </dl>
+          {{#if currentActivity.hasIngredients}}
+            <p><strong>Ingrédients consommés:</strong></p>
+            <ul class="pfg-rolls">
+              {{#each currentActivity.ingredients}}
+                <li>{{name}} × {{quantity}}</li>
+              {{/each}}
+            </ul>
+          {{/if}}
+          <p class="pfg-success">{{currentActivity.resultStatus}}</p>
+        {{else}}
         {{#if currentActivity.isHarvest}}
           <dl class="pfg-dl">
             <div>
@@ -528,6 +689,7 @@
             <p class="pfg-note">Par défaut, le module poste un résumé seulement. Les gains ne sont appliqués qu'après confirmation.</p>
           {{/if}}
         {{/if}}
+        {{/if}}
       {{else}}
         <p class="pfg-warning">Aucune activité lancée.</p>
       {{/if}}
@@ -537,6 +699,10 @@
         <ol class="pfg-rolls">
           {{#each activityHistory}}
             <li>
+              {{#if isCrafting}}
+                <strong>#{{number}} {{title}}</strong> - {{summaryLine}} - {{costLabel}} - {{moneyCostLabel}}
+                <small>{{resultStatus}}</small>
+              {{else}}
               {{#if isHarvest}}
                 <strong>#{{number}} {{title}}</strong> - {{summaryLine}} - {{costLabel}}
                 <small>{{resultStatus}}</small>
@@ -548,6 +714,7 @@
                     <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
                   {{/each}}
                 </ol>
+              {{/if}}
               {{/if}}
             </li>
           {{/each}}
@@ -566,10 +733,12 @@
       </button>
       {{#if hasCurrentActivity}}
         {{#unless currentActivity.isHarvest}}
-          <button type="button" data-action="apply-gains" {{#unless canApplyCurrentActivity}}disabled{{/unless}}>
-            <i class="fas fa-coins"></i>
-            Appliquer les gains
-          </button>
+          {{#unless currentActivity.isCrafting}}
+            <button type="button" data-action="apply-gains" {{#unless canApplyCurrentActivity}}disabled{{/unless}}>
+              <i class="fas fa-coins"></i>
+              Appliquer les gains
+            </button>
+          {{/unless}}
         {{/unless}}
       {{/if}}
       {{#if canStartAnotherActivity}}

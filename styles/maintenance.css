@@ -309,6 +309,40 @@
   opacity: 0.72;
 }
 
+.pfg-inline-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+.pfg-ingredient-list {
+  display: grid;
+  gap: 6px;
+}
+
+.pfg-ingredient-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 96px 120px 32px;
+  align-items: end;
+  gap: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 5px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.pfg-ingredient-row.missing {
+  border-color: rgba(168, 55, 48, 0.45);
+  background: rgba(168, 55, 48, 0.08);
+}
+
+.pfg-ingredient-row button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
 .pfg-errors {
   margin: 0;
   padding-left: 28px;
@@ -359,6 +393,7 @@
   .pfg-two-cols,
   .pfg-activity-list,
   .pfg-harvest-list,
+  .pfg-ingredient-row,
   .pfg-trainer-list,
   .pfg-pr-strip {
     grid-template-columns: 1fr;

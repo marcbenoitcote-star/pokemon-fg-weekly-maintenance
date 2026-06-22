@@ -43,6 +43,29 @@ export const ACTIVITY_COSTS_PRQ = {
   gardenHarvest: 1
 };
 
+export const CRAFTING_JOURNAL_UUID = "Compendium.ptu.journals.JournalEntry.klJMCQbOAWq5CJ9r";
+
+export const CRAFTING_TYPES = [
+  {
+    key: "normal",
+    label: "Objet normal",
+    costPRQ: ACTIVITY_COSTS_PRQ.normalCraft,
+    enabled: true
+  },
+  {
+    key: "weapon",
+    label: "Arme (à venir)",
+    costPRQ: ACTIVITY_COSTS_PRQ.equipmentCraft,
+    enabled: false
+  },
+  {
+    key: "armor",
+    label: "Armure",
+    costPRQ: ACTIVITY_COSTS_PRQ.equipmentCraft,
+    enabled: true
+  }
+];
+
 export const RANK_LABELS = {
   0: "Inconnu",
   1: "Pathetic",
@@ -115,7 +138,7 @@ export const ACTIVITY_OPTIONS = [
     icon: "fas fa-hammer",
     title: "Fabrication",
     description: "Drag & drop d'objet, ingredients reserves, argent et inventaire.",
-    enabled: false
+    enabled: true
   },
   {
     key: ACTIVITY_KEYS.pokemonHarvest,

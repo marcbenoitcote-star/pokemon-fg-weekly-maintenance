@@ -3,7 +3,7 @@ import { MODULE_ID } from "../data/constants.js";
 export async function resolveDroppedItem(dropData) {
   if (!dropData) return null;
   const uuid = dropData.uuid || dropData.documentUuid;
-  if (uuid && globalThis.fromUuid) return fromUuid(uuid);
+  if (uuid && globalThis.fromUuid) return globalThis.fromUuid(uuid);
   if (dropData.type === "Item" && dropData.id) return game.items?.get?.(dropData.id) ?? null;
   return null;
 }
@@ -78,7 +78,7 @@ export function getMoney(actor) {
 }
 
 async function adjustMoney(actor, delta) {
-  if (!actor?.isOwner) return false;
+  if (!(actor?.isOwner || game.user?.isGM)) return false;
   const current = getMoney(actor);
   const next = Math.max(0, current + delta);
   await actor.update({ "system.money": next });
@@ -88,7 +88,7 @@ async function adjustMoney(actor, delta) {
   return true;
 }
 
-function getItemQuantity(item) {
+export function getItemQuantity(item) {
   const candidates = ["system.quantity", "system.quantity.value", "system.amount", "system.qty"];
   for (const path of candidates) {
     const value = foundry.utils.getProperty(item, path);

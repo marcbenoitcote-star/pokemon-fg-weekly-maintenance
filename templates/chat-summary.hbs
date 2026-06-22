@@ -14,16 +14,23 @@
     <h4>Activités</h4>
     <ol>
       {{#each activities}}
+        {{#if isCrafting}}
+          <li>{{title}} - {{summaryLine}}, coût {{costLabel}}, {{moneyCostLabel}}</li>
+        {{else}}
         {{#if isHarvest}}
           <li>{{title}} - {{summaryLine}}, coût {{costLabel}}</li>
         {{else}}
           <li>{{title}} - {{totalGain}}₽ gagnés, coût {{costLabel}}</li>
+        {{/if}}
         {{/if}}
       {{/each}}
     </ol>
     <h4>Modifications</h4>
     <ul>
       {{#each activities}}
+        {{#if isCrafting}}
+          <li>Fabrication: {{resultStatus}} Argent: -{{moneyCostLabel}}</li>
+        {{else}}
         {{#if isHarvest}}
           <li>Récolte: {{resultStatus}}</li>
         {{else}}
@@ -33,9 +40,27 @@
             <li>Argent: +{{totalGain}}₽ non appliqué</li>
           {{/if}}
         {{/if}}
+        {{/if}}
       {{/each}}
     </ul>
   {{else}}
+    {{#if activity.isCrafting}}
+      <h3>⚙️ Fabrication — {{actor.name}}</h3>
+      <p><strong>Objet fabriqué:</strong> {{activity.itemName}} × {{activity.quantity}}</p>
+      <p><strong>Type:</strong> {{activity.craftTypeLabel}}</p>
+      <p><strong>Coût PR:</strong> {{activity.costLabel}}</p>
+      <p><strong>Coût Pokédollars:</strong> {{activity.moneyCostLabel}}</p>
+      {{#if activity.hasIngredients}}
+        <p><strong>Ingrédients consommés:</strong></p>
+        <ul>
+          {{#each activity.ingredients}}
+            <li>{{name}} × {{quantity}}</li>
+          {{/each}}
+        </ul>
+      {{/if}}
+      <p><strong>Résultat:</strong> {{activity.resultStatus}}</p>
+      <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+    {{else}}
     {{#if activity.isHarvest}}
       <h3>Récolte Pokémon - {{actor.name}}</h3>
       <p><strong>Récolte:</strong> {{activity.harvestLabel}} ({{activity.harvestCategory}})</p>
@@ -63,6 +88,7 @@
       </ol>
       <p><strong>Total gagné:</strong> {{activity.totalGain}}₽</p>
       <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+    {{/if}}
     {{/if}}
   {{/if}}
 </div>

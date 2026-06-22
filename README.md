@@ -27,9 +27,12 @@ Cette version livre l'étape 1 du cahier des charges:
 - Confirmation du Pokémon possédé par sélection d'un Actor Pokémon détecté ou par nom manuel.
 - Validation des prérequis spéciaux: confirmation `Field of Study: Paleontology` pour Fossil Research, confirmation ou dépôt de `Shuckle's Berry Juice` pour Rare Candy, et 2 Oricorio pour Nectar Dancer.
 - Application de résultat Récolte: ajout d'item depuis UUID, lancement de RollTable, ou information chat selon le type.
+- Activité complète `Fabrication` avec journal de fabrication, drop de l'objet final, type, quantité, coût argent, ingrédients réservés et confirmation finale.
+- La Fabrication réserve les ingrédients au drop et ne retire argent/ingrédients qu'au moment de la confirmation.
+- Types Fabrication actifs: `Objet normal` à 1 PRQ par objet et `Armure` à 4 PRQ par armure. Le type `Arme` reste visible mais désactivé en attendant les règles détaillées.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
-Les étapes Fabrication et Agriculture / Jardinage sont visibles comme emplacements de travail, mais pas encore actives dans l'interface.
+L'étape Agriculture / Jardinage est visible comme emplacement de travail, mais pas encore active dans l'interface.
 
 ## Installation locale
 
@@ -75,10 +78,11 @@ Flux MVP:
 1. Choisir un Trainer.
 2. Verifier le calcul des PR et choisir le skill PR voulu.
 3. Remplir la semaine ou l'evenement actif.
-4. Choisir `Petit Travail` ou `Récolte Pokémon`.
+4. Choisir `Petit Travail`, `Récolte Pokémon` ou `Fabrication`.
 5. Pour `Petit Travail`, saisir la description, le skill et le nombre de travaux, puis lancer les dés.
 6. Pour `Récolte Pokémon`, choisir la récolte, confirmer le Pokémon utilisé, puis confirmer le résultat.
-7. Poster le résumé, appliquer les gains si souhaité, commencer une nouvelle activité avec les PR restants, puis terminer l'entretien.
+7. Pour `Fabrication`, déposer l'objet final, choisir le type, la quantité, le coût argent et les ingrédients réservés, puis confirmer.
+8. Poster le résumé, appliquer les gains si souhaité, commencer une nouvelle activité avec les PR restants, puis terminer l'entretien.
 
 Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bouton `Appliquer les gains` demande confirmation avant de modifier `system.money`. Les Récoltes Pokémon appliquent leur résultat au moment de la confirmation quand l'item ou la RollTable est disponible, sinon le chat indique l'action manuelle à faire.
 
@@ -95,6 +99,16 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Utiliser `Retour` après une récolte confirmée: le résultat doit rester verrouillé et impossible à relancer.
 - Cliquer `Nouvelle activité`: les PR restants doivent être conservés et l'ancienne récolte doit rester dans l'historique.
 - Terminer l'entretien et vérifier que le résumé final contient Petit Travail et Récolte si les deux ont été faits.
+- Vérifier que `Fabrication` est sélectionnable dans l'écran Activité.
+- Ouvrir le journal de fabrication depuis le bouton dédié.
+- Déposer un objet final depuis un compendium ou la sidebar Items.
+- Tester `Objet normal`: quantité 4 doit coûter 1 PR.
+- Tester `Armure`: quantité 1 doit coûter 1 PR.
+- Entrer un coût Pokédollars total, puis un coût unitaire, et vérifier le total calculé.
+- Déposer des ingrédients depuis l'inventaire du Trainer: ils doivent être seulement réservés avant confirmation.
+- Cliquer `X` sur un ingrédient réservé: il doit disparaître de la liste sans modifier l'inventaire.
+- Confirmer une Fabrication avec argent et ingrédients suffisants: argent et ingrédients sont retirés, l'objet final est ajouté et le résumé chat est posté.
+- Tenter une Fabrication avec argent, PR ou ingrédients insuffisants: la confirmation doit être bloquée.
 
 ## Configuration MJ
 
@@ -149,7 +163,7 @@ Chemins importants geres:
 
 ## Prochaines étapes
 
-1. Fabrication avec drag & drop, argent, ingredients reserves et confirmation finale.
+1. Fabrication d'armes avec les règles détaillées.
 2. Validation automatique plus stricte des capabilities, niveaux et Friendship pour certaines Récoltes Pokémon.
 3. Agriculture / Jardinage avec Planting Stage, Growth Stage, Harvest Stage, Natural Specialty et Yield Rolls.
 4. Panneau MJ d'evenement hebdomadaire avec bonus mecaniques.

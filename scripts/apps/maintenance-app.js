@@ -2,6 +2,8 @@ import {
   ACTIVITY_COSTS_PRQ,
   ACTIVITY_KEYS,
   ACTIVITY_OPTIONS,
+  CRAFTING_JOURNAL_UUID,
+  CRAFTING_TYPES,
   DEFAULT_WEEK_DATA,
   HARVEST_RESULT_TYPES,
   MAINTENANCE_SKILL_KEYS,
@@ -27,7 +29,16 @@ import {
   saveWeek,
   unlockWeek
 } from "../services/calendar-service.js";
-import { addItemToActor, addMoney, getMoney, resolveDroppedItem } from "../services/item-service.js";
+import {
+  addItemToActor,
+  addMoney,
+  deductMoney,
+  getItemQuantity,
+  getMoney,
+  hasItemQuantity,
+  removeItemQuantity,
+  resolveDroppedItem
+} from "../services/item-service.js";
 import { getOwnedPokemonForTrainer } from "../services/pokemon-service.js";
 import { postActivitySummary, postFinalSummary, postRollCard } from "../services/chat-service.js";
 
@@ -80,6 +91,16 @@ export class PfgMaintenanceApp extends Application {
         rareCandyIngredientName: "",
         rareCandyIngredientUuid: ""
       },
+      crafting: {
+        itemUuid: "",
+        itemName: "",
+        itemType: "",
+        type: "normal",
+        quantity: 1,
+        moneyMode: "total",
+        moneyValue: 0,
+        ingredients: []
+      },
       activities: [],
       currentActivity: null,
       finalized: false
@@ -110,6 +131,7 @@ export class PfgMaintenanceApp extends Application {
     const remainingPRQ = Math.max(0, totalPRQ - spentPRQ);
     const workData = this.getWorkData(actor, totalPRQ, spentPRQ);
     const harvestData = this.getHarvestData(actor, totalPRQ, spentPRQ);
+    const craftingData = this.getCraftingData(actor, totalPRQ, spentPRQ);
     const activityHistory = plannedActivities.map((activity, index) => ({
       ...activity,
       number: index + 1,
@@ -133,6 +155,7 @@ export class PfgMaintenanceApp extends Application {
       isTrainerStep: this.state.step === "trainer",
       isPrStep: this.state.step === "pr",
       isActivityStep: this.state.step === "activity",
+      isCraftingStep: this.state.step === "crafting",
       isHarvestStep: this.state.step === "harvest",
       isWorkStep: this.state.step === "work",
       isSummaryStep: this.state.step === "summary",
@@ -170,6 +193,7 @@ export class PfgMaintenanceApp extends Application {
       strictActivityMode: setting(SETTINGS.strictActivityMode, true),
       work: workData,
       harvest: harvestData,
+      crafting: craftingData,
       activities: plannedActivities,
       activityHistory,
       hasActivityHistory: activityHistory.length > 0,
@@ -207,17 +231,17 @@ export class PfgMaintenanceApp extends Application {
       this.updateFieldState(event.currentTarget);
     });
 
-    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], input[name^='craftIngredientQuantity:']", (event) => {
       this.updateFieldState(event.currentTarget);
       this.render(false);
     });
 
-    html.on("dragover", ".pfg-drop-zone[data-drop-target='rareCandyIngredient']", (event) => {
+    html.on("dragover", ".pfg-drop-zone", (event) => {
       event.preventDefault();
       event.currentTarget.classList.add("dragging");
     });
 
-    html.on("dragleave", ".pfg-drop-zone[data-drop-target='rareCandyIngredient']", (event) => {
+    html.on("dragleave", ".pfg-drop-zone", (event) => {
       event.currentTarget.classList.remove("dragging");
     });
 
@@ -225,6 +249,13 @@ export class PfgMaintenanceApp extends Application {
       this.handleHarvestDrop(event).catch((error) => {
         console.error(`${MODULE_ID} | Drop récolte impossible.`, error);
         ui.notifications.error(`Récolte Pokémon: ${error.message ?? error}`);
+      });
+    });
+
+    html.on("drop", ".pfg-drop-zone[data-drop-target='craftResult'], .pfg-drop-zone[data-drop-target='craftIngredient']", (event) => {
+      this.handleCraftDrop(event).catch((error) => {
+        console.error(`${MODULE_ID} | Drop fabrication impossible.`, error);
+        ui.notifications.error(`Fabrication: ${error.message ?? error}`);
       });
     });
   }
@@ -276,6 +307,11 @@ export class PfgMaintenanceApp extends Application {
         this.render(false);
         return;
       }
+      if (this.state.selectedActivity === ACTIVITY_KEYS.crafting) {
+        this.state.step = "crafting";
+        this.render(false);
+        return;
+      }
       if (this.state.selectedActivity === ACTIVITY_KEYS.pokemonHarvest) {
         this.state.step = "harvest";
         this.render(false);
@@ -293,8 +329,23 @@ export class PfgMaintenanceApp extends Application {
       return;
     }
 
+    if (action === "open-crafting-journal") {
+      await this.openCraftingJournal();
+      return;
+    }
+
+    if (action === "remove-craft-ingredient") {
+      this.removeCraftIngredient(control?.dataset?.entryId);
+      return;
+    }
+
     if (action === "roll-work") {
       await this.rollWork();
+      return;
+    }
+
+    if (action === "confirm-crafting") {
+      await this.confirmCrafting();
       return;
     }
 
@@ -366,6 +417,15 @@ export class PfgMaintenanceApp extends Application {
     if (form.querySelector?.("[name='harvestOwnsPokemon']")) this.state.harvest.ownsPokemon = data.has("harvestOwnsPokemon");
     if (form.querySelector?.("[name='harvestPaleontologyConfirmed']")) this.state.harvest.paleontologyConfirmed = data.has("harvestPaleontologyConfirmed");
     if (form.querySelector?.("[name='harvestRareCandyIngredientConfirmed']")) this.state.harvest.rareCandyIngredientConfirmed = data.has("harvestRareCandyIngredientConfirmed");
+    if (data.has("craftType")) this.state.crafting.type = normalizeCraftType(data.get("craftType"), this.state.crafting.type);
+    if (data.has("craftQuantity")) this.state.crafting.quantity = readPositiveCount(data.get("craftQuantity"), this.state.crafting.quantity);
+    if (data.has("craftMoneyMode")) this.state.crafting.moneyMode = normalizeMoneyMode(data.get("craftMoneyMode"), this.state.crafting.moneyMode);
+    if (data.has("craftMoneyValue")) this.state.crafting.moneyValue = readMoneyValue(data.get("craftMoneyValue"), this.state.crafting.moneyValue);
+    for (const [key, value] of data.entries()) {
+      if (String(key).startsWith("craftIngredientQuantity:")) {
+        this.updateCraftIngredientQuantity(String(key).split(":").slice(1).join(":"), value);
+      }
+    }
   }
 
   updateFieldState(field) {
@@ -393,6 +453,13 @@ export class PfgMaintenanceApp extends Application {
     if (name === "harvestOwnsPokemon") this.state.harvest.ownsPokemon = Boolean(field.checked);
     if (name === "harvestPaleontologyConfirmed") this.state.harvest.paleontologyConfirmed = Boolean(field.checked);
     if (name === "harvestRareCandyIngredientConfirmed") this.state.harvest.rareCandyIngredientConfirmed = Boolean(field.checked);
+    if (name === "craftType") this.state.crafting.type = normalizeCraftType(field.value, this.state.crafting.type);
+    if (name === "craftQuantity") this.state.crafting.quantity = readPositiveCount(field.value, this.state.crafting.quantity);
+    if (name === "craftMoneyMode") this.state.crafting.moneyMode = normalizeMoneyMode(field.value, this.state.crafting.moneyMode);
+    if (name === "craftMoneyValue") this.state.crafting.moneyValue = readMoneyValue(field.value, this.state.crafting.moneyValue);
+    if (String(name).startsWith("craftIngredientQuantity:")) {
+      this.updateCraftIngredientQuantity(String(name).split(":").slice(1).join(":"), field.value);
+    }
   }
 
   getWorkData(actor, totalPRQ, spentPRQ) {
@@ -510,6 +577,74 @@ export class PfgMaintenanceApp extends Application {
       requirementErrors,
       hasRequirementErrors: requirementErrors.length > 0,
       canHarvest: Boolean(actor && selectedOption && !lockedActivity && requirementErrors.length === 0)
+    };
+  }
+
+  getCraftingData(actor, totalPRQ, spentPRQ) {
+    const lockedActivity = this.state.currentActivity?.key === ACTIVITY_KEYS.crafting ? this.state.currentActivity : null;
+    const remainingBefore = Math.max(0, totalPRQ - spentPRQ);
+    const craftTypeKey = normalizeCraftType(lockedActivity?.craftType ?? this.state.crafting.type);
+    this.state.crafting.type = craftTypeKey;
+    const craftType = getCraftType(craftTypeKey);
+    const quantity = lockedActivity?.quantity ?? Math.max(1, this.state.crafting.quantity);
+    const moneyMode = normalizeMoneyMode(lockedActivity?.moneyMode ?? this.state.crafting.moneyMode);
+    const moneyValue = lockedActivity?.moneyValue ?? Math.max(0, Number(this.state.crafting.moneyValue) || 0);
+    const moneyCost = lockedActivity?.moneyCost ?? calculateCraftMoneyCost(moneyMode, moneyValue, quantity);
+    const costPRQ = lockedActivity?.costPRQ ?? quantity * (craftType?.costPRQ ?? ACTIVITY_COSTS_PRQ.normalCraft);
+    const ingredients = (lockedActivity?.ingredients ?? this.state.crafting.ingredients).map((ingredient) => {
+      const actorItem = actor ? actor.items?.get?.(ingredient.itemId) : null;
+      const availableQuantity = lockedActivity ? ingredient.availableQuantity : (actorItem ? getItemQuantity(actorItem) : 0);
+      const quantityNeeded = Math.max(1, Math.trunc(Number(ingredient.quantity) || 1));
+      return {
+        ...ingredient,
+        quantity: quantityNeeded,
+        availableQuantity,
+        enough: Boolean(lockedActivity || (actorItem && availableQuantity >= quantityNeeded))
+      };
+    });
+    const requirementErrors = lockedActivity ? [] : getCraftRequirementErrors(actor, {
+      itemUuid: this.state.crafting.itemUuid,
+      itemName: this.state.crafting.itemName,
+      craftType,
+      quantity,
+      costPRQ,
+      remainingBefore,
+      moneyCost,
+      ingredients
+    });
+
+    return {
+      ...this.state.crafting,
+      itemUuid: lockedActivity?.itemUuid ?? this.state.crafting.itemUuid,
+      itemName: lockedActivity?.itemName ?? this.state.crafting.itemName,
+      itemType: lockedActivity?.itemType ?? this.state.crafting.itemType,
+      type: craftTypeKey,
+      quantity,
+      moneyMode,
+      moneyModeUnit: moneyMode === "unit",
+      moneyValue,
+      moneyCost,
+      moneyCostLabel: formatMoney(moneyCost),
+      unitMoneyCostLabel: moneyMode === "unit" ? formatMoney(moneyValue) : "",
+      costPRQ,
+      costLabel: lockedActivity?.costLabel ?? formatPRQ(costPRQ),
+      remainingBefore,
+      remainingBeforeLabel: formatPRQ(remainingBefore),
+      remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - (lockedActivity ? 0 : costPRQ))),
+      typeOptions: CRAFTING_TYPES.map((type) => ({
+        ...type,
+        selected: type.key === craftTypeKey,
+        costLabel: `${formatPRQ(type.costPRQ)} / unité`,
+        disabled: !type.enabled
+      })),
+      selectedType: craftType,
+      selectedTypeLabel: craftType?.label ?? craftTypeKey,
+      ingredients,
+      hasIngredients: ingredients.length > 0,
+      requirementErrors,
+      hasRequirementErrors: requirementErrors.length > 0,
+      locked: Boolean(lockedActivity),
+      canCraft: Boolean(actor && !lockedActivity && requirementErrors.length === 0)
     };
   }
 
@@ -749,6 +884,220 @@ export class PfgMaintenanceApp extends Application {
     this.render(false);
   }
 
+  async handleCraftDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.remove("dragging");
+    if (this.state.currentActivity?.key === ACTIVITY_KEYS.crafting) {
+      ui.notifications.warn("Fabrication déjà confirmée: le résultat est verrouillé.");
+      return;
+    }
+
+    this.readForm(event.currentTarget.closest("form"));
+    const target = event.currentTarget.dataset.dropTarget;
+    const dropData = readDropData(event);
+    if (!dropData) {
+      ui.notifications.warn("Dépôt invalide. Glisse un item depuis un compendium, la sidebar Items ou l'inventaire du Trainer.");
+      return;
+    }
+
+    const item = await resolveDroppedItem(dropData);
+    if (!item) {
+      ui.notifications.warn("Item introuvable pour ce dépôt.");
+      return;
+    }
+
+    if (target === "craftResult") {
+      this.state.crafting.itemUuid = item.uuid ?? dropData.uuid ?? dropData.documentUuid ?? "";
+      this.state.crafting.itemName = item.name ?? "Objet fabriqué";
+      this.state.crafting.itemType = item.type ?? "";
+      ui.notifications.info(`${this.state.crafting.itemName} défini comme objet à fabriquer.`);
+      this.render(false);
+      return;
+    }
+
+    if (target === "craftIngredient") {
+      const actor = this.actor;
+      if (!actor || !isEmbeddedItemFromActor(item, actor)) {
+        ui.notifications.warn("Les ingrédients doivent être glissés depuis l'inventaire du Trainer sélectionné.");
+        return;
+      }
+
+      const itemId = item.id ?? item._id;
+      const entryId = itemId || item.uuid;
+      const existing = this.state.crafting.ingredients.find((ingredient) => ingredient.entryId === entryId);
+      if (existing) {
+        existing.quantity = Math.max(1, Math.trunc(Number(existing.quantity) || 1) + 1);
+      } else {
+        this.state.crafting.ingredients.push({
+          entryId,
+          itemId,
+          uuid: item.uuid ?? "",
+          name: item.name ?? "Ingrédient",
+          quantity: 1,
+          availableQuantity: getItemQuantity(item)
+        });
+      }
+      ui.notifications.info(`${item.name} réservé comme ingrédient.`);
+      this.render(false);
+    }
+  }
+
+  async openCraftingJournal() {
+    if (!globalThis.fromUuid) {
+      ui.notifications.warn("Impossible d'ouvrir le journal: fromUuid indisponible.");
+      return;
+    }
+    const journal = await globalThis.fromUuid(CRAFTING_JOURNAL_UUID);
+    if (!journal) {
+      ui.notifications.warn("Journal de fabrication introuvable.");
+      return;
+    }
+    if (journal.sheet?.render) {
+      journal.sheet.render(true);
+    } else if (journal.render) {
+      journal.render(true);
+    }
+  }
+
+  removeCraftIngredient(entryId) {
+    const id = stringValue(entryId);
+    if (!id) return;
+    this.state.crafting.ingredients = this.state.crafting.ingredients.filter((ingredient) => ingredient.entryId !== id);
+    this.render(false);
+  }
+
+  updateCraftIngredientQuantity(entryId, value) {
+    const id = stringValue(entryId);
+    const ingredient = this.state.crafting.ingredients.find((entry) => entry.entryId === id);
+    if (!ingredient) return;
+    ingredient.quantity = readPositiveCount(value, ingredient.quantity);
+  }
+
+  async confirmCrafting() {
+    const actor = this.actor;
+    if (!actor) return;
+
+    if (this.state.currentActivity) {
+      ui.notifications.warn("Une activité a déjà été confirmée. Le résultat est conservé dans l'historique.");
+      this.state.step = "summary";
+      this.render(false);
+      return;
+    }
+
+    const data = this.getData();
+    const crafting = data.crafting;
+    if (!crafting.canCraft) {
+      ui.notifications.warn(crafting.requirementErrors?.[0] ?? "Fabrication impossible avec les données actuelles.");
+      return;
+    }
+    if (!globalThis.fromUuid) {
+      ui.notifications.warn("Impossible de résoudre l'objet final: fromUuid indisponible.");
+      return;
+    }
+
+    const finalItem = await globalThis.fromUuid(crafting.itemUuid);
+    if (!finalItem) {
+      ui.notifications.warn("Objet final introuvable. Redépose l'objet à fabriquer.");
+      return;
+    }
+
+    const confirmed = await confirmDialog(
+      "Confirmer la fabrication",
+      `<p>Fabriquer ${escapeHtml(crafting.itemName)} x ${escapeHtml(crafting.quantity)} pour ${escapeHtml(crafting.costLabel)} et ${escapeHtml(crafting.moneyCostLabel)} ?</p>`
+    );
+    if (!confirmed) return;
+
+    const refreshed = this.getCraftingData(actor, data.totalPRQ, data.spentPRQ);
+    const errors = getCraftRequirementErrors(actor, {
+      itemUuid: refreshed.itemUuid,
+      itemName: refreshed.itemName,
+      craftType: refreshed.selectedType,
+      quantity: refreshed.quantity,
+      costPRQ: refreshed.costPRQ,
+      remainingBefore: refreshed.remainingBefore,
+      moneyCost: refreshed.moneyCost,
+      ingredients: refreshed.ingredients
+    });
+    if (errors.length > 0) {
+      ui.notifications.warn(errors[0]);
+      return;
+    }
+
+    if (refreshed.moneyCost > 0) {
+      const paid = await deductMoney(actor, refreshed.moneyCost);
+      if (!paid) {
+        ui.notifications.warn("Impossible de retirer les Pokédollars du Trainer.");
+        return;
+      }
+    }
+
+    for (const ingredient of refreshed.ingredients) {
+      const removed = await removeItemQuantity(actor, ingredient.itemId, ingredient.quantity);
+      if (!removed) {
+        ui.notifications.warn(`Impossible de retirer ${ingredient.name}. Vérifie l'inventaire.`);
+        return;
+      }
+    }
+
+    const created = await addItemToActor(actor, finalItem, refreshed.quantity);
+    const resultStatus = created
+      ? "Fabrication terminée."
+      : "Ressources consommées; objet final à ajouter manuellement.";
+    const ingredients = refreshed.ingredients.map((ingredient) => ({
+      entryId: ingredient.entryId,
+      itemId: ingredient.itemId,
+      uuid: ingredient.uuid,
+      name: ingredient.name,
+      quantity: ingredient.quantity
+    }));
+    const activity = {
+      key: ACTIVITY_KEYS.crafting,
+      isCrafting: true,
+      title: "Fabrication",
+      description: refreshed.itemName,
+      itemUuid: refreshed.itemUuid,
+      itemName: refreshed.itemName,
+      itemType: refreshed.itemType,
+      craftType: refreshed.type,
+      craftTypeLabel: refreshed.selectedTypeLabel,
+      quantity: refreshed.quantity,
+      costPRQ: refreshed.costPRQ,
+      costLabel: refreshed.costLabel,
+      moneyMode: refreshed.moneyMode,
+      moneyValue: refreshed.moneyValue,
+      moneyCost: refreshed.moneyCost,
+      moneyCostLabel: refreshed.moneyCostLabel,
+      moneyDelta: -refreshed.moneyCost,
+      ingredients,
+      hasIngredients: ingredients.length > 0,
+      resultStatus,
+      summaryLine: `${refreshed.itemName} × ${refreshed.quantity}`,
+      rolls: [],
+      totalGain: 0,
+      applied: true
+    };
+
+    this.state.activities.push(activity);
+    this.state.currentActivity = activity;
+    const totals = this.getTotals();
+
+    await postActivitySummary({
+      actor,
+      activity,
+      activities: [activity],
+      calendar: getCurrentWeekData(this.state.calendar),
+      totalPRLabel: formatPRQ(totals.totalPRQ),
+      spentPRLabel: formatPRQ(totals.spentPRQ),
+      remainingPRLabel: formatPRQ(totals.remainingPRQ),
+      isActivity: true
+    });
+
+    ui.notifications.info(resultStatus);
+    this.state.step = "summary";
+    this.render(false);
+  }
+
   async postCurrentActivity() {
     const actor = this.actor;
     const activity = this.state.currentActivity;
@@ -817,6 +1166,7 @@ export class PfgMaintenanceApp extends Application {
     this.state.currentActivity = null;
     this.resetWorkState();
     this.resetHarvestState();
+    this.resetCraftingState();
     this.state.step = "activity";
     this.render(false);
   }
@@ -904,11 +1254,13 @@ export class PfgMaintenanceApp extends Application {
   }
 
   goBack() {
-    if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest) {
+    if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.crafting) {
+      this.state.step = "crafting";
+    } else if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest) {
       this.state.step = "harvest";
     } else if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.work) {
       this.state.step = "work";
-    } else if (this.state.step === "work" || this.state.step === "harvest") {
+    } else if (this.state.step === "work" || this.state.step === "harvest" || this.state.step === "crafting") {
       this.state.step = "activity";
     } else if (this.state.step === "activity") {
       this.state.step = "pr";
@@ -923,6 +1275,7 @@ export class PfgMaintenanceApp extends Application {
   resetActivityState(skillKey = this.state.prSkillKey) {
     this.resetWorkState(skillKey);
     this.resetHarvestState();
+    this.resetCraftingState();
     this.state.activities = [];
     this.state.currentActivity = null;
     this.state.finalized = false;
@@ -953,6 +1306,19 @@ export class PfgMaintenanceApp extends Application {
     };
   }
 
+  resetCraftingState() {
+    this.state.crafting = {
+      itemUuid: "",
+      itemName: "",
+      itemType: "",
+      type: "normal",
+      quantity: 1,
+      moneyMode: "total",
+      moneyValue: 0,
+      ingredients: []
+    };
+  }
+
   selectTrainer(actor) {
     this.state.actorId = getActorKey(actor);
     this.state.step = "pr";
@@ -975,7 +1341,11 @@ export class PfgMaintenanceApp extends Application {
 }
 
 function getVisibleSteps(state) {
-  const actionStep = state.step === "harvest"
+  const actionStep = state.step === "crafting"
+    || state.selectedActivity === ACTIVITY_KEYS.crafting
+    || state.currentActivity?.key === ACTIVITY_KEYS.crafting
+    ? { key: "crafting", label: "Fabrication" }
+    : state.step === "harvest"
     || state.selectedActivity === ACTIVITY_KEYS.pokemonHarvest
     || state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest
     ? { key: "harvest", label: "Récolte" }
@@ -994,6 +1364,9 @@ function getCheapestEnabledActivityCost() {
   const enabledKeys = new Set(ACTIVITY_OPTIONS.filter((option) => option.enabled).map((option) => option.key));
   const costs = [];
   if (enabledKeys.has(ACTIVITY_KEYS.work)) costs.push(ACTIVITY_COSTS_PRQ.work);
+  if (enabledKeys.has(ACTIVITY_KEYS.crafting)) {
+    costs.push(...CRAFTING_TYPES.filter((type) => type.enabled).map((type) => type.costPRQ));
+  }
   if (enabledKeys.has(ACTIVITY_KEYS.pokemonHarvest)) {
     costs.push(...POKEMON_HARVEST_OPTIONS.map((option) => option.costPRQ));
   }
@@ -1015,6 +1388,84 @@ function getHarvestResultTypeLabel(resultType) {
   if (resultType === HARVEST_RESULT_TYPES.item) return "Item";
   if (resultType === HARVEST_RESULT_TYPES.rollTable) return "RollTable";
   return "Info chat";
+}
+
+function getCraftType(key) {
+  return CRAFTING_TYPES.find((type) => type.key === key) ?? CRAFTING_TYPES[0] ?? null;
+}
+
+function normalizeCraftType(value, fallback = "normal") {
+  const key = stringValue(value);
+  const type = CRAFTING_TYPES.find((entry) => entry.key === key && entry.enabled);
+  if (type) return type.key;
+  const fallbackType = CRAFTING_TYPES.find((entry) => entry.key === fallback && entry.enabled);
+  return fallbackType?.key ?? CRAFTING_TYPES.find((entry) => entry.enabled)?.key ?? "normal";
+}
+
+function normalizeMoneyMode(value, fallback = "total") {
+  const mode = stringValue(value);
+  if (mode === "unit" || mode === "total") return mode;
+  return fallback === "unit" ? "unit" : "total";
+}
+
+function readMoneyValue(value, fallback = 0) {
+  const number = Number(value);
+  if (Number.isFinite(number) && number >= 0) return Math.floor(number);
+  return Math.max(0, Math.floor(Number(fallback) || 0));
+}
+
+function calculateCraftMoneyCost(mode, value, quantity) {
+  const amount = readMoneyValue(value, 0);
+  const count = Math.max(1, Math.trunc(Number(quantity) || 1));
+  return mode === "unit" ? amount * count : amount;
+}
+
+function formatMoney(amount) {
+  return `${Math.max(0, Math.trunc(Number(amount) || 0))}₽`;
+}
+
+function getCraftRequirementErrors(actor, context) {
+  const errors = [];
+  if (!actor) errors.push("Choisis un Trainer avant de fabriquer.");
+  if (!(actor?.isOwner || game.user?.isGM)) errors.push("Seul le propriétaire ou un MJ peut confirmer une fabrication.");
+  if (!context.itemUuid || !context.itemName) errors.push("Dépose l'objet final à fabriquer.");
+  if (!context.craftType?.enabled) errors.push("Ce type de fabrication n'est pas encore disponible.");
+  if (context.quantity < 1) errors.push("La quantité doit être au moins 1.");
+  if (context.remainingBefore < context.costPRQ) {
+    errors.push(`PR insuffisants: ${formatPRQ(context.costPRQ)} requis.`);
+  }
+  if (getMoney(actor) < context.moneyCost) {
+    errors.push(`Argent insuffisant: ${formatMoney(context.moneyCost)} requis.`);
+  }
+
+  for (const ingredient of context.ingredients ?? []) {
+    const hasEnough = ingredient.itemId && hasItemQuantity(actor, ingredient.itemId, ingredient.quantity);
+    if (!hasEnough) {
+      errors.push(`${ingredient.name}: ${ingredient.quantity} requis, ${ingredient.availableQuantity ?? 0} disponible.`);
+    }
+  }
+
+  return errors;
+}
+
+function readDropData(event) {
+  const transfer = event.originalEvent?.dataTransfer ?? event.dataTransfer;
+  const raw = transfer?.getData("text/plain") || transfer?.getData("application/json");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function isEmbeddedItemFromActor(item, actor) {
+  if (!item || !actor) return false;
+  const uuid = String(item.uuid ?? "");
+  return item.parent?.id === actor.id
+    || item.actor?.id === actor.id
+    || uuid.startsWith(`${actor.uuid}.Item.`)
+    || uuid.includes(`Actor.${actor.id}.Item.`);
 }
 
 function getPokemonOptions(actor, selectedId) {
