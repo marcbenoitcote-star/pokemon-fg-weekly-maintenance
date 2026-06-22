@@ -1,0 +1,14 @@
+<div class="pfg-chat-card">
+  <h3>Petit Travail Hebdomadaire - {{actor.name}}</h3>
+  <p><strong>Travail:</strong> {{activity.description}}</p>
+  <p><strong>Skill:</strong> {{activity.skillLabel}} - {{activity.skillRankLabel}}</p>
+  <p><strong>Nombre de travaux:</strong> {{activity.count}}</p>
+  <p><strong>Cout:</strong> {{activity.costLabel}}</p>
+  <ol>
+    {{#each rolls}}
+      <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
+    {{/each}}
+  </ol>
+  <p><strong>Total gagné:</strong> {{totalGain}}₽</p>
+  <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+</div>

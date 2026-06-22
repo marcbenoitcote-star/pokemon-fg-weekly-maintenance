@@ -1,0 +1,16 @@
+{
+  "PFG_MAINTENANCE.Settings.StrictActivityMode.Name": "Mode strict des activites",
+  "PFG_MAINTENANCE.Settings.StrictActivityMode.Hint": "Empêche de melanger Petit Travail avec Fabrication, Recolte Pokemon ou Agriculture pendant la même semaine.",
+  "PFG_MAINTENANCE.Settings.LockWeeks.Name": "Verrouiller les semaines finalisees",
+  "PFG_MAINTENANCE.Settings.LockWeeks.Hint": "Empêche un joueur de refaire le même entretien pour le même Trainer dans la même semaine. Un MJ peut deverrouiller depuis l'application.",
+  "PFG_MAINTENANCE.Settings.MinimumWorkRate.Name": "Taux minimum du Petit Travail",
+  "PFG_MAINTENANCE.Settings.MinimumWorkRate.Hint": "Taux minimum en Pokedollars par point de d6, même pour Pathetic ou Untrained. Laisser 0 pour suivre la table par defaut.",
+  "PFG_MAINTENANCE.Settings.MaxBonusGardenSlots.Name": "Emplacements bonus maximum",
+  "PFG_MAINTENANCE.Settings.MaxBonusGardenSlots.Hint": "Reserve pour l'etape Agriculture / Jardinage. Nombre d'emplacements bonus recommandes au-dessus des 6 emplacements de base.",
+  "PFG_MAINTENANCE.Settings.HarvestRollUsesSkillDice.Name": "Recolte avec des de de Skill",
+  "PFG_MAINTENANCE.Settings.HarvestRollUsesSkillDice.Hint": "Reserve pour l'etape Agriculture. Si actif, les jets de recolte utiliseront les des de Skill plutot que le rang numerique.",
+  "PFG_MAINTENANCE.Settings.FreeReplantThreshold.Name": "Seuil de reprise gratuite",
+  "PFG_MAINTENANCE.Settings.FreeReplantThreshold.Hint": "Reserve pour l'etape Agriculture. Resultat minimum pour obtenir une reprise gratuite apres recolte.",
+  "PFG_MAINTENANCE.Settings.Debug.Name": "Logs de debug",
+  "PFG_MAINTENANCE.Settings.Debug.Hint": "Affiche dans la console les chemins PTR manquants, lectures de donnees et operations appliquees."
+}

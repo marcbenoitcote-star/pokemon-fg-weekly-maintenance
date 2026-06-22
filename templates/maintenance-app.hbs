@@ -1,0 +1,316 @@
+<form class="pfg-maintenance-form">
+  <header class="pfg-maintenance-header">
+    <div>
+      <h2>{{title}}</h2>
+      {{#if actor}}
+        <p>{{actorName}} - Argent actuel: {{actorMoney}}₽</p>
+      {{else}}
+        <p>Entretien hebdomadaire des Trainers Pokémon FG</p>
+      {{/if}}
+    </div>
+    <button type="button" data-action="cancel" title="Fermer">
+      <i class="fas fa-xmark"></i>
+    </button>
+  </header>
+
+  <nav class="pfg-maintenance-steps" aria-label="Étapes">
+    {{#each steps}}
+      <span class="pfg-step {{#if active}}active{{/if}} {{#if done}}done{{/if}}">
+        {{label}}
+      </span>
+    {{/each}}
+  </nav>
+
+  {{#if actor}}
+    <section class="pfg-pr-strip">
+      <div>
+        <span>Total PR</span>
+        <strong>{{totalPRLabel}}</strong>
+      </div>
+      <div>
+        <span>Dépensés</span>
+        <strong>{{spentPRLabel}}</strong>
+      </div>
+      <div>
+        <span>Restants</span>
+        <strong>{{remainingPRLabel}}</strong>
+      </div>
+    </section>
+  {{/if}}
+
+  {{#if isTrainerStep}}
+    <section class="pfg-panel">
+      <h3>Sélection Trainer</h3>
+      {{#if hasTrainers}}
+        <label>
+          Trainer
+          <select name="actorId">
+            <option value="">Choisir un Trainer</option>
+            {{#each trainers}}
+              <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+            {{/each}}
+          </select>
+        </label>
+      {{else}}
+        <p class="pfg-warning">Aucun Actor de type character disponible pour cet utilisateur.</p>
+      {{/if}}
+    </section>
+
+    <footer class="pfg-actions">
+      <button type="button" data-action="select-trainer" {{#unless hasTrainers}}disabled{{/unless}}>
+        <i class="fas fa-arrow-right"></i>
+        Suivant
+      </button>
+    </footer>
+  {{/if}}
+
+  {{#if isPrStep}}
+    <section class="pfg-grid">
+      <div class="pfg-panel">
+        <h3>Résumé PR</h3>
+        <dl class="pfg-dl">
+          <div>
+            <dt>Niveau</dt>
+            <dd>{{pr.level.value}} <small>{{pr.level.source}}</small></dd>
+          </div>
+          <div>
+            <dt>Power</dt>
+            <dd>{{pr.power.value}} <small>{{pr.power.source}}</small></dd>
+          </div>
+          <div>
+            <dt>Meilleur skill</dt>
+            <dd>{{pr.bestSkill.label}} - {{pr.bestSkill.rankLabel}} ({{pr.bestSkill.rank}})</dd>
+          </div>
+          <div>
+            <dt>Calcul</dt>
+            <dd>{{pr.detail}}</dd>
+          </div>
+        </dl>
+
+        {{#if pr.level.missing}}
+          <p class="pfg-warning">Niveau non détecté automatiquement. Utilise le champ manuel ci-dessous.</p>
+        {{/if}}
+        {{#if pr.power.missing}}
+          <p class="pfg-warning">Power non détecté automatiquement. Utilise le champ manuel ci-dessous.</p>
+        {{/if}}
+
+        <div class="pfg-two-cols">
+          <label>
+            Niveau utilisé
+            <input type="number" name="manualLevel" min="1" step="1" value="{{manualLevel}}" placeholder="{{pr.level.value}}">
+          </label>
+          <label>
+            Power utilisé
+            <input type="number" name="manualPower" min="0" step="1" value="{{manualPower}}" placeholder="{{pr.power.value}}">
+          </label>
+        </div>
+      </div>
+
+      <div class="pfg-panel">
+        <h3>Semaine</h3>
+        {{#if calendar.manual}}
+          <label>
+            Nom de la semaine
+            <input type="text" name="weekName" value="{{calendar.weekName}}" placeholder="Semaine 12">
+          </label>
+          <label>
+            Date RP
+            <input type="text" name="rpDate" value="{{calendar.rpDate}}" placeholder="Printemps, jour 4">
+          </label>
+        {{else}}
+          <p>Simple Calendar Reborn détecté.</p>
+          <p><strong>{{calendar.calendarLabel}}</strong></p>
+        {{/if}}
+        <label>
+          Événement de la semaine
+          <input type="text" name="eventName" value="{{calendar.eventName}}" placeholder="Festival de Flovhavn">
+        </label>
+        <label>
+          Bonus / description
+          <textarea name="eventDescription" rows="3">{{calendar.eventDescription}}</textarea>
+        </label>
+
+        {{#if weekLocked}}
+          <p class="pfg-warning">Cet entretien est déjà finalisé pour cette semaine.</p>
+          {{#if canUnlockWeek}}
+            <button type="button" data-action="unlock-week">
+              <i class="fas fa-lock-open"></i>
+              Déverrouiller cette semaine
+            </button>
+          {{/if}}
+        {{/if}}
+      </div>
+    </section>
+
+    <footer class="pfg-actions">
+      <button type="button" data-action="back">
+        <i class="fas fa-arrow-left"></i>
+        Retour
+      </button>
+      <button type="button" data-action="to-activity" {{#if weekLocked}}disabled{{/if}}>
+        <i class="fas fa-arrow-right"></i>
+        Suivant
+      </button>
+    </footer>
+  {{/if}}
+
+  {{#if isActivityStep}}
+    <section class="pfg-panel">
+      <h3>Choix activité</h3>
+      {{#if strictActivityMode}}
+        <p class="pfg-note">Mode strict actif: Petit Travail ne sera pas mélangé avec les autres activités.</p>
+      {{else}}
+        <p class="pfg-note">Mode libre actif: les PR restants pourront être dépensés dans plusieurs activités.</p>
+      {{/if}}
+
+      <div class="pfg-activity-list">
+        {{#each activityOptions}}
+          <label class="pfg-activity {{#if disabled}}disabled{{/if}}">
+            <input type="radio" name="selectedActivity" value="{{key}}" {{#if selected}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
+            <i class="{{icon}}"></i>
+            <span>
+              <strong>{{title}}</strong>
+              <small>{{description}}</small>
+            </span>
+          </label>
+        {{/each}}
+      </div>
+    </section>
+
+    <footer class="pfg-actions">
+      <button type="button" data-action="back">
+        <i class="fas fa-arrow-left"></i>
+        Retour
+      </button>
+      <button type="button" data-action="to-work">
+        <i class="fas fa-arrow-right"></i>
+        Suivant
+      </button>
+    </footer>
+  {{/if}}
+
+  {{#if isWorkStep}}
+    <section class="pfg-panel">
+      <h3>Petit Travail Hebdomadaire</h3>
+      <label>
+        Description du travail
+        <input type="text" name="workDescription" value="{{work.description}}" placeholder="Déplacement du matériel d'entraînement">
+      </label>
+
+      <div class="pfg-two-cols">
+        <label>
+          Skill utilisé
+          <select name="workSkillKey">
+            {{#each work.skillOptions}}
+              <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} - {{rankLabel}}</option>
+            {{/each}}
+          </select>
+        </label>
+        <label>
+          Nombre de Petits Travaux
+          <input type="number" name="workCount" min="1" max="{{work.maxCount}}" step="1" value="{{work.count}}">
+        </label>
+      </div>
+
+      <dl class="pfg-dl">
+        <div>
+          <dt>Rang détecté</dt>
+          <dd>{{work.rankLabel}}</dd>
+        </div>
+        <div>
+          <dt>Taux</dt>
+          <dd>{{work.rate}}₽ par point de d6</dd>
+        </div>
+        <div>
+          <dt>Maximum possible</dt>
+          <dd>{{work.maxCount}}</dd>
+        </div>
+        <div>
+          <dt>Coût total</dt>
+          <dd>{{work.costLabel}}</dd>
+        </div>
+      </dl>
+
+      {{#if work.rateWarning}}
+        <p class="pfg-warning">Skill Pathetic ou Untrained: le paiement est 0 sauf taux minimum configuré par le MJ.</p>
+      {{/if}}
+      {{#unless work.canRoll}}
+        <p class="pfg-warning">PR insuffisants pour effectuer un Petit Travail.</p>
+      {{/unless}}
+    </section>
+
+    <footer class="pfg-actions">
+      <button type="button" data-action="back">
+        <i class="fas fa-arrow-left"></i>
+        Retour
+      </button>
+      <button type="button" data-action="roll-work" {{#unless work.canRoll}}disabled{{/unless}}>
+        <i class="fas fa-dice-d6"></i>
+        Lancer
+      </button>
+    </footer>
+  {{/if}}
+
+  {{#if isSummaryStep}}
+    <section class="pfg-panel">
+      <h3>Résumé activité</h3>
+      {{#if hasCurrentActivity}}
+        <dl class="pfg-dl">
+          <div>
+            <dt>Activité</dt>
+            <dd>{{currentActivity.title}}</dd>
+          </div>
+          <div>
+            <dt>Travail</dt>
+            <dd>{{currentActivity.description}}</dd>
+          </div>
+          <div>
+            <dt>Skill</dt>
+            <dd>{{currentActivity.skillLabel}} - {{currentActivity.skillRankLabel}}</dd>
+          </div>
+          <div>
+            <dt>Coût</dt>
+            <dd>{{currentActivity.costLabel}}</dd>
+          </div>
+          <div>
+            <dt>Total gagné</dt>
+            <dd>{{currentActivity.totalGain}}₽</dd>
+          </div>
+        </dl>
+
+        <ol class="pfg-rolls">
+          {{#each currentActivityRolls}}
+            <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
+          {{/each}}
+        </ol>
+
+        {{#if currentActivity.applied}}
+          <p class="pfg-success">Gains appliqués à la fiche.</p>
+        {{else}}
+          <p class="pfg-note">Par défaut, le module poste un résumé seulement. Les gains ne sont appliqués qu'après confirmation.</p>
+        {{/if}}
+      {{else}}
+        <p class="pfg-warning">Aucune activité lancée.</p>
+      {{/if}}
+    </section>
+
+    <footer class="pfg-actions">
+      <button type="button" data-action="back">
+        <i class="fas fa-arrow-left"></i>
+        Retour
+      </button>
+      <button type="button" data-action="post-activity" {{#unless hasCurrentActivity}}disabled{{/unless}}>
+        <i class="fas fa-message"></i>
+        Poster résumé
+      </button>
+      <button type="button" data-action="apply-gains" {{#unless canApply}}disabled{{/unless}}>
+        <i class="fas fa-coins"></i>
+        Appliquer les gains
+      </button>
+      <button type="button" data-action="finish" {{#unless hasCurrentActivity}}disabled{{/unless}}>
+        <i class="fas fa-check"></i>
+        Terminer l'entretien
+      </button>
+    </footer>
+  {{/if}}
+</form>

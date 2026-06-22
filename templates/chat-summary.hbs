@@ -1,0 +1,44 @@
+<div class="pfg-chat-card">
+  {{#if isFinal}}
+    <h3>Entretien Hebdomadaire termine - {{actor.name}}</h3>
+    <p><strong>Semaine:</strong> {{calendar.calendarLabel}}</p>
+    {{#if calendar.eventName}}
+      <p><strong>Evenement de la semaine:</strong> {{calendar.eventName}}</p>
+    {{/if}}
+    {{#if calendar.eventDescription}}
+      <p>{{calendar.eventDescription}}</p>
+    {{/if}}
+    <p><strong>PR total:</strong> {{totalPRLabel}}</p>
+    <p><strong>PR depenses:</strong> {{spentPRLabel}}</p>
+    <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+    <h4>Activités</h4>
+    <ol>
+      {{#each activities}}
+        <li>{{title}} - {{totalGain}}₽ gagnés, coût {{costLabel}}</li>
+      {{/each}}
+    </ol>
+    <h4>Modifications</h4>
+    <ul>
+      {{#each activities}}
+        {{#if applied}}
+          <li>Argent: +{{moneyDelta}}₽ appliqué</li>
+        {{else}}
+          <li>Argent: +{{totalGain}}₽ non appliqué</li>
+        {{/if}}
+      {{/each}}
+    </ul>
+  {{else}}
+    <h3>Petit Travail Hebdomadaire - {{actor.name}}</h3>
+    <p><strong>Travail:</strong> {{activity.description}}</p>
+    <p><strong>Skill:</strong> {{activity.skillLabel}} - {{activity.skillRankLabel}}</p>
+    <p><strong>Nombre de travaux:</strong> {{activity.count}}</p>
+    <p><strong>Cout:</strong> {{activity.costLabel}}</p>
+    <ol>
+      {{#each activity.rolls}}
+        <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
+      {{/each}}
+    </ol>
+    <p><strong>Total gagné:</strong> {{activity.totalGain}}₽</p>
+    <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+  {{/if}}
+</div>
