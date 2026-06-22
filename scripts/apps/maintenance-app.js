@@ -235,6 +235,13 @@ export class PfgMaintenanceApp extends Application {
       return;
     }
 
+    if (action === "to-summary") {
+      if (!this.state.currentActivity) return;
+      this.state.step = "summary";
+      this.render(false);
+      return;
+    }
+
     if (action === "roll-work") {
       await this.rollWork();
       return;
@@ -301,32 +308,36 @@ export class PfgMaintenanceApp extends Application {
   }
 
   getWorkData(actor, totalPRQ, spentPRQ) {
-    const previousSpent = this.state.currentActivity ? spentPRQ - this.state.currentActivity.costPRQ : spentPRQ;
-    const remainingBefore = Math.max(0, totalPRQ - previousSpent);
+    const lockedActivity = this.state.currentActivity?.key === ACTIVITY_KEYS.work ? this.state.currentActivity : null;
+    const remainingBefore = Math.max(0, totalPRQ - spentPRQ);
     const maxCount = Math.floor(remainingBefore / ACTIVITY_COSTS_PRQ.work);
-    const workSkillKey = normalizeMaintenanceSkill(this.state.work.skillKey, this.state.prSkillKey);
+    const workSkillKey = normalizeMaintenanceSkill(lockedActivity?.skillKey ?? this.state.work.skillKey, this.state.prSkillKey);
     this.state.work.skillKey = workSkillKey;
     const selectedSkill = actor ? getSkillRank(actor, workSkillKey) : null;
-    const rate = selectedSkill ? getWorkRateForRank(selectedSkill.rank) : 0;
-    const count = Math.min(Math.max(1, this.state.work.count), Math.max(1, maxCount));
-    const costPRQ = count * ACTIVITY_COSTS_PRQ.work;
+    const rate = lockedActivity?.rate ?? (selectedSkill ? getWorkRateForRank(selectedSkill.rank) : 0);
+    const count = lockedActivity?.count ?? Math.min(Math.max(1, this.state.work.count), Math.max(1, maxCount));
+    const costPRQ = lockedActivity?.costPRQ ?? count * ACTIVITY_COSTS_PRQ.work;
 
     return {
       ...this.state.work,
+      description: lockedActivity?.description ?? this.state.work.description,
       count,
-      maxCount,
+      maxCount: lockedActivity?.count ?? maxCount,
       costPRQ,
-      costLabel: formatPRQ(costPRQ),
+      costLabel: lockedActivity?.costLabel ?? formatPRQ(costPRQ),
       remainingBefore,
       remainingBeforeLabel: formatPRQ(remainingBefore),
-      remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - costPRQ)),
+      remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - (lockedActivity ? 0 : costPRQ))),
       skillKey: workSkillKey,
       skillOptions: getSkillOptions(actor, workSkillKey, MAINTENANCE_SKILL_KEYS),
       selectedSkill,
       rankLabel: selectedSkill?.rankLabel ?? getRankLabel(0),
       rate,
       rateWarning: selectedSkill ? selectedSkill.rank <= 2 : false,
-      canRoll: Boolean(actor && maxCount > 0),
+      locked: Boolean(lockedActivity),
+      lockedRolls: lockedActivity?.rolls ?? [],
+      lockedTotalGain: lockedActivity?.totalGain ?? 0,
+      canRoll: Boolean(actor && maxCount > 0 && !lockedActivity),
       rolls: this.state.work.rolls ?? [],
       totalGain: this.state.work.totalGain ?? 0
     };
@@ -339,6 +350,13 @@ export class PfgMaintenanceApp extends Application {
   async rollWork() {
     const actor = this.actor;
     if (!actor) return;
+
+    if (this.state.currentActivity) {
+      ui.notifications.warn("Un Petit Travail a déjà été lancé pour cet entretien. Le résultat est conservé.");
+      this.state.step = "summary";
+      this.render(false);
+      return;
+    }
 
     const data = this.getData();
     const work = data.work;

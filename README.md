@@ -20,6 +20,7 @@ Cette version livre l'étape 1 du cahier des charges:
 - Activité complète `Petit Travail Hebdomadaire`.
 - Jet `1d6 x taux du rang`, résumé chat et application optionnelle des gains.
 - Saisie stable du skill PR, de la description et du nombre de Petits Travaux pendant les recalculs d'interface.
+- Verrouillage du Petit Travail apres le premier lancer: les PR restent depenses, les jets restent visibles, et l'activite ne peut pas etre relancee pour remplacer le resultat.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
 Les étapes Fabrication, Récolte Pokémon et Agriculture / Jardinage sont visibles comme emplacements de travail, mais pas encore actives dans l'interface.

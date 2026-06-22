@@ -233,13 +233,13 @@
       <h3>Petit Travail Hebdomadaire</h3>
       <label>
         Description du travail
-        <input type="text" name="workDescription" value="{{work.description}}" placeholder="Déplacement du matériel d'entraînement">
+        <input type="text" name="workDescription" value="{{work.description}}" placeholder="Déplacement du matériel d'entraînement" {{#if work.locked}}disabled{{/if}}>
       </label>
 
       <div class="pfg-two-cols">
         <label>
           Skill utilisé
-          <select name="workSkillKey">
+          <select name="workSkillKey" {{#if work.locked}}disabled{{/if}}>
             {{#each work.skillOptions}}
               <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} - {{rankLabel}} ({{total}})</option>
             {{/each}}
@@ -247,7 +247,7 @@
         </label>
         <label>
           Nombre de Petits Travaux
-          <input type="number" name="workCount" min="1" max="{{work.maxCount}}" step="1" value="{{work.count}}">
+          <input type="number" name="workCount" min="1" max="{{work.maxCount}}" step="1" value="{{work.count}}" {{#if work.locked}}disabled{{/if}}>
         </label>
       </div>
 
@@ -265,7 +265,7 @@
           <dd>{{work.rate}}₽ par point de d6</dd>
         </div>
         <div>
-          <dt>Maximum possible</dt>
+          <dt>{{#if work.locked}}Nombre lancé{{else}}Maximum possible{{/if}}</dt>
           <dd>{{work.maxCount}}</dd>
         </div>
         <div>
@@ -277,9 +277,19 @@
       {{#if work.rateWarning}}
         <p class="pfg-warning">Skill Pathetic ou Untrained: le paiement est 0 sauf taux minimum configuré par le MJ.</p>
       {{/if}}
-      {{#unless work.canRoll}}
-        <p class="pfg-warning">PR insuffisants pour effectuer un Petit Travail.</p>
-      {{/unless}}
+      {{#if work.locked}}
+        <p class="pfg-note">Petit Travail déjà lancé: les PR sont dépensés et les jets sont conservés.</p>
+        <ol class="pfg-rolls">
+          {{#each work.lockedRolls}}
+            <li>{{die}} x {{rate}}₽ = {{gain}}₽</li>
+          {{/each}}
+        </ol>
+        <p><strong>Total gagné:</strong> {{work.lockedTotalGain}}₽</p>
+      {{else}}
+        {{#unless work.canRoll}}
+          <p class="pfg-warning">PR insuffisants pour effectuer un Petit Travail.</p>
+        {{/unless}}
+      {{/if}}
     </section>
 
     <footer class="pfg-actions">
@@ -287,10 +297,17 @@
         <i class="fas fa-arrow-left"></i>
         Retour
       </button>
-      <button type="button" data-action="roll-work" {{#unless work.canRoll}}disabled{{/unless}}>
-        <i class="fas fa-dice-d6"></i>
-        Lancer
-      </button>
+      {{#if work.locked}}
+        <button type="button" data-action="to-summary">
+          <i class="fas fa-list-check"></i>
+          Voir résumé
+        </button>
+      {{else}}
+        <button type="button" data-action="roll-work" {{#unless work.canRoll}}disabled{{/unless}}>
+          <i class="fas fa-dice-d6"></i>
+          Lancer
+        </button>
+      {{/if}}
     </footer>
   {{/if}}
 
