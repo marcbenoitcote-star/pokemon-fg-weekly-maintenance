@@ -89,6 +89,14 @@
     <section class="pfg-grid">
       <div class="pfg-panel">
         <h3>Résumé PR</h3>
+        <label>
+          Skill utilisé pour les PR
+          <select name="prSkillKey">
+            {{#each prSkillOptions}}
+              <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} - {{rankLabel}} ({{total}})</option>
+            {{/each}}
+          </select>
+        </label>
         <dl class="pfg-dl">
           <div>
             <dt>Niveau</dt>
@@ -99,9 +107,19 @@
             <dd>{{pr.power.value}} <small>{{pr.power.source}}</small></dd>
           </div>
           <div>
-            <dt>Meilleur skill</dt>
-            <dd>{{pr.bestSkill.label}} - {{pr.bestSkill.rankLabel}} ({{pr.bestSkill.rank}})</dd>
+            <dt>Skill PR</dt>
+            <dd>{{pr.selectedSkill.label}} - {{pr.selectedSkill.rankLabel}} ({{pr.selectedSkill.totalDetail}})</dd>
           </div>
+          <div>
+            <dt>Jet de fiche</dt>
+            <dd>{{pr.selectedSkill.diceFormula}} <small>mod {{pr.selectedSkill.modifierTotal}}</small></dd>
+          </div>
+          {{#unless pr.usesBestSkill}}
+          <div>
+            <dt>Meilleur détecté</dt>
+            <dd>{{pr.bestSkill.label}} - {{pr.bestSkill.rankLabel}} ({{pr.bestSkill.totalDetail}})</dd>
+          </div>
+          {{/unless}}
           <div>
             <dt>Calcul</dt>
             <dd>{{pr.detail}}</dd>
@@ -223,7 +241,7 @@
           Skill utilisé
           <select name="workSkillKey">
             {{#each work.skillOptions}}
-              <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} - {{rankLabel}}</option>
+              <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} - {{rankLabel}} ({{total}})</option>
             {{/each}}
           </select>
         </label>
@@ -236,7 +254,11 @@
       <dl class="pfg-dl">
         <div>
           <dt>Rang détecté</dt>
-          <dd>{{work.rankLabel}}</dd>
+          <dd>{{work.rankLabel}} ({{work.selectedSkill.totalDetail}})</dd>
+        </div>
+        <div>
+          <dt>Jet de fiche</dt>
+          <dd>{{work.selectedSkill.diceFormula}} <small>mod {{work.selectedSkill.modifierTotal}}</small></dd>
         </div>
         <div>
           <dt>Taux</dt>

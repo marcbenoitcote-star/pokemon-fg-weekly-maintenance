@@ -3,6 +3,7 @@ import {
   ACTIVITY_KEYS,
   ACTIVITY_OPTIONS,
   DEFAULT_WEEK_DATA,
+  MAINTENANCE_SKILL_KEYS,
   MODULE_ID,
   MODULE_TITLE,
   SETTINGS,
@@ -11,6 +12,7 @@ import {
 import {
   calculatePR,
   formatPRQ,
+  getBestSkill,
   getRankLabel,
   getSkillOptions,
   getSkillRank,
@@ -54,11 +56,12 @@ export class PfgMaintenanceApp extends Application {
       actorId: options.actorId ?? null,
       manualLevel: "",
       manualPower: "",
+      prSkillKey: "generalEd",
       calendar: { ...DEFAULT_WEEK_DATA },
       selectedActivity: ACTIVITY_KEYS.work,
       work: {
         description: "",
-        skillKey: "athletics",
+        skillKey: "generalEd",
         count: 1,
         rolls: [],
         totalGain: 0
@@ -79,7 +82,8 @@ export class PfgMaintenanceApp extends Application {
     const trainers = getAvailableTrainers();
     const pr = actor ? calculatePR(actor, "work", {
       manualLevel: this.state.manualLevel,
-      manualPower: this.state.manualPower
+      manualPower: this.state.manualPower,
+      skillKey: this.state.prSkillKey
     }) : null;
     const week = getCurrentWeekData(this.state.calendar);
     const weekEntry = actor ? getActorWeek(actor, week.weekKey) : null;
@@ -120,6 +124,8 @@ export class PfgMaintenanceApp extends Application {
       actorMoney: actor ? getMoney(actor) : 0,
       canApply: Boolean(actor && (actor.isOwner || game.user?.isGM)),
       pr,
+      prSkillKey: this.state.prSkillKey,
+      prSkillOptions: getSkillOptions(actor, this.state.prSkillKey, MAINTENANCE_SKILL_KEYS),
       totalPRQ,
       totalPRLabel: formatPRQ(totalPRQ),
       spentPRQ,
@@ -168,7 +174,7 @@ export class PfgMaintenanceApp extends Application {
       this.render(false);
     });
 
-    html.on("change", "select[name='workSkillKey'], input[name='workCount']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount']", (event) => {
       this.readForm(event.currentTarget.closest("form") ?? html);
       this.render(false);
     });
@@ -264,13 +270,14 @@ export class PfgMaintenanceApp extends Application {
     if (data.has("actorId")) this.state.actorId = normalizeActorKey(data.get("actorId")) || this.state.actorId;
     if (data.has("manualLevel")) this.state.manualLevel = stringValue(data.get("manualLevel"));
     if (data.has("manualPower")) this.state.manualPower = stringValue(data.get("manualPower"));
+    if (data.has("prSkillKey")) this.state.prSkillKey = normalizeMaintenanceSkill(data.get("prSkillKey"), this.state.prSkillKey);
     if (data.has("weekName")) this.state.calendar.weekName = stringValue(data.get("weekName"));
     if (data.has("rpDate")) this.state.calendar.rpDate = stringValue(data.get("rpDate"));
     if (data.has("eventName")) this.state.calendar.eventName = stringValue(data.get("eventName"));
     if (data.has("eventDescription")) this.state.calendar.eventDescription = stringValue(data.get("eventDescription"));
     if (data.has("selectedActivity")) this.state.selectedActivity = stringValue(data.get("selectedActivity")) || this.state.selectedActivity;
     if (data.has("workDescription")) this.state.work.description = stringValue(data.get("workDescription"));
-    if (data.has("workSkillKey")) this.state.work.skillKey = stringValue(data.get("workSkillKey")) || "athletics";
+    if (data.has("workSkillKey")) this.state.work.skillKey = normalizeMaintenanceSkill(data.get("workSkillKey"), this.state.work.skillKey);
     if (data.has("workCount")) this.state.work.count = Math.max(1, Math.trunc(Number(data.get("workCount")) || 1));
   }
 
@@ -278,7 +285,9 @@ export class PfgMaintenanceApp extends Application {
     const previousSpent = this.state.currentActivity ? spentPRQ - this.state.currentActivity.costPRQ : spentPRQ;
     const remainingBefore = Math.max(0, totalPRQ - previousSpent);
     const maxCount = Math.floor(remainingBefore / ACTIVITY_COSTS_PRQ.work);
-    const selectedSkill = actor ? getSkillRank(actor, this.state.work.skillKey) : null;
+    const workSkillKey = normalizeMaintenanceSkill(this.state.work.skillKey, this.state.prSkillKey);
+    this.state.work.skillKey = workSkillKey;
+    const selectedSkill = actor ? getSkillRank(actor, workSkillKey) : null;
     const rate = selectedSkill ? getWorkRateForRank(selectedSkill.rank) : 0;
     const count = Math.min(Math.max(1, this.state.work.count), Math.max(1, maxCount));
     const costPRQ = count * ACTIVITY_COSTS_PRQ.work;
@@ -292,7 +301,8 @@ export class PfgMaintenanceApp extends Application {
       remainingBefore,
       remainingBeforeLabel: formatPRQ(remainingBefore),
       remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - costPRQ)),
-      skillOptions: getSkillOptions(actor, this.state.work.skillKey),
+      skillKey: workSkillKey,
+      skillOptions: getSkillOptions(actor, workSkillKey, MAINTENANCE_SKILL_KEYS),
       selectedSkill,
       rankLabel: selectedSkill?.rankLabel ?? getRankLabel(0),
       rate,
@@ -344,6 +354,8 @@ export class PfgMaintenanceApp extends Application {
       skillLabel: work.selectedSkill?.label ?? this.state.work.skillKey,
       skillRank: work.selectedSkill?.rank ?? 0,
       skillRankLabel: work.selectedSkill?.rankLabel ?? getRankLabel(0),
+      skillTotalDetail: work.selectedSkill?.totalDetail ?? "0",
+      skillDiceFormula: work.selectedSkill?.diceFormula ?? "0d6",
       count,
       costPRQ: count * ACTIVITY_COSTS_PRQ.work,
       costLabel: formatPRQ(count * ACTIVITY_COSTS_PRQ.work),
@@ -476,7 +488,8 @@ export class PfgMaintenanceApp extends Application {
     const actor = this.actor;
     const pr = actor ? calculatePR(actor, "work", {
       manualLevel: this.state.manualLevel,
-      manualPower: this.state.manualPower
+      manualPower: this.state.manualPower,
+      skillKey: this.state.prSkillKey
     }) : null;
     const totalPRQ = pr?.totalPRQ ?? 0;
     const spentPRQ = this.getPlannedActivities().reduce((total, activity) => total + Number(activity.costPRQ || 0), 0);
@@ -501,10 +514,11 @@ export class PfgMaintenanceApp extends Application {
     this.render(false);
   }
 
-  resetActivityState() {
+  resetActivityState(skillKey = this.state.prSkillKey) {
+    const normalizedSkill = normalizeMaintenanceSkill(skillKey, "generalEd");
     this.state.work = {
       description: "",
-      skillKey: "athletics",
+      skillKey: normalizedSkill,
       count: 1,
       rolls: [],
       totalGain: 0
@@ -516,7 +530,9 @@ export class PfgMaintenanceApp extends Application {
   selectTrainer(actor) {
     this.state.actorId = getActorKey(actor);
     this.state.step = "pr";
-    this.resetActivityState();
+    const bestSkill = getBestSkill(actor, "work");
+    this.state.prSkillKey = normalizeMaintenanceSkill(bestSkill?.key, "generalEd");
+    this.resetActivityState(this.state.prSkillKey);
     this.debugSelection("select-trainer", this.state.actorId, actor);
     this.render(false);
   }
@@ -545,6 +561,13 @@ function getActorKey(actor) {
 
 function normalizeActorKey(value) {
   return String(value ?? "").trim();
+}
+
+function normalizeMaintenanceSkill(value, fallback = "generalEd") {
+  const key = stringValue(value);
+  if (MAINTENANCE_SKILL_KEYS.includes(key)) return key;
+  if (MAINTENANCE_SKILL_KEYS.includes(fallback)) return fallback;
+  return MAINTENANCE_SKILL_KEYS[0] ?? "generalEd";
 }
 
 function getActorByKey(actorKey) {

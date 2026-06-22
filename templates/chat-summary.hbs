@@ -31,6 +31,9 @@
     <h3>Petit Travail Hebdomadaire - {{actor.name}}</h3>
     <p><strong>Travail:</strong> {{activity.description}}</p>
     <p><strong>Skill:</strong> {{activity.skillLabel}} - {{activity.skillRankLabel}}</p>
+    {{#if activity.skillTotalDetail}}
+      <p><strong>Total skill:</strong> {{activity.skillTotalDetail}}; {{activity.skillDiceFormula}}</p>
+    {{/if}}
     <p><strong>Nombre de travaux:</strong> {{activity.count}}</p>
     <p><strong>Cout:</strong> {{activity.costLabel}}</p>
     <ol>

@@ -50,7 +50,8 @@ export const RANK_LABELS = {
   4: "Adept",
   5: "Expert",
   6: "Master",
-  7: "Virtuose"
+  7: "Virtuoso",
+  8: "Virtuoso"
 };
 
 export const WORK_RATES = {
@@ -60,7 +61,8 @@ export const WORK_RATES = {
   4: 100,
   5: 150,
   6: 250,
-  7: 300
+  7: 300,
+  8: 300
 };
 
 export const TRAINER_SKILLS = [
@@ -83,11 +85,20 @@ export const TRAINER_SKILLS = [
   { key: "survival", label: "Survival" }
 ];
 
+export const MAINTENANCE_SKILL_KEYS = [
+  "generalEd",
+  "occultEd",
+  "medicineEd",
+  "pokemonEd",
+  "techEd",
+  "survival"
+];
+
 export const PR_SKILL_KEYS = {
-  work: ["generalEd", "medicineEd", "occultEd", "techEd"],
-  crafting: ["generalEd", "medicineEd", "occultEd", "techEd"],
-  harvest: ["generalEd", "medicineEd", "occultEd", "techEd", "survival"],
-  gardening: ["generalEd", "medicineEd", "occultEd", "techEd", "survival"]
+  work: MAINTENANCE_SKILL_KEYS,
+  crafting: MAINTENANCE_SKILL_KEYS,
+  harvest: MAINTENANCE_SKILL_KEYS,
+  gardening: MAINTENANCE_SKILL_KEYS
 };
 
 export const ACTIVITY_OPTIONS = [

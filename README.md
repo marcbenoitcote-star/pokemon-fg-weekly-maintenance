@@ -9,6 +9,8 @@ Cette version livre l'étape 1 du cahier des charges:
 - Macro `game.pfgMaintenance.open();`
 - Selection des Trainers possedes par le joueur, ou de tous les Trainers pour un MJ.
 - Calcul des Points Rentability / PR avec stockage interne en quarts de PR (`PRQ`).
+- Choix manuel du skill PR parmi `General Education`, `Occult Education`, `Medicine Education`, `Pokémon Education`, `Technology Education` et `Survival`.
+- Lecture PTR des skills via `system.skills.<skill>.value.total` et `modifier.total`, donc avec les bonus/malus de fiche.
 - Overrides manuels pour le niveau et Power si les chemins PTR ne sont pas détectés.
 - Detection basique de Simple Calendar Reborn si son API est disponible, sinon semaine manuelle.
 - Integration ciblee avec `Fireblight-Studios/foundryvtt-simple-calendar` (`foundryvtt-simple-calendar-reborn`).
@@ -63,7 +65,7 @@ game.pfgMaintenance.open();
 Flux MVP:
 
 1. Choisir un Trainer.
-2. Verifier le calcul des PR.
+2. Verifier le calcul des PR et choisir le skill PR voulu.
 3. Remplir la semaine ou l'evenement actif.
 4. Choisir `Petit Travail`.
 5. Saisir la description, le skill et le nombre de travaux.
@@ -120,7 +122,7 @@ Chemins importants geres:
 
 - Niveau: `system.level.value`, `system.level.current`, `system.level.total`, `system.level.milestones`
 - Power: `system.modifiers.capabilities.power`, `system.capabilities.power`
-- Skills: `system.skills.skills.<skill>.value.value`, `system.skills.<skill>.value.value`
+- Skills: `system.skills.<skill>.value.total`, `system.skills.<skill>.value.value`, `system.skills.<skill>.value.mod`, `system.skills.<skill>.modifier.total`
 - Argent: `system.money`
 
 ## Prochaines étapes

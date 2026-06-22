@@ -1,4 +1,5 @@
 import {
+  MAINTENANCE_SKILL_KEYS,
   MODULE_ID,
   PRQ_PER_PR,
   PR_SKILL_KEYS,
@@ -21,9 +22,17 @@ const POWER_PATHS = [
   "system.capabilities.other.power"
 ];
 
-const SKILL_PATH_PATTERNS = [
+const SKILL_OBJECT_PATH_PATTERNS = [
+  "system.skills.{skill}",
+  "system.skills.skills.{skill}",
+  "attributes.skills.{skill}",
+  "system.attributes.skills.{skill}"
+];
+
+const SKILL_LEGACY_NUMBER_PATH_PATTERNS = [
   "system.skills.skills.{skill}.value.value",
   "system.skills.skills.{skill}.value",
+  "system.skills.{skill}.value.total",
   "system.skills.{skill}.value.value",
   "system.skills.{skill}.value",
   "system.skills.{skill}"
@@ -56,12 +65,45 @@ export function getPower(actor, options = {}) {
 }
 
 export function getSkillRank(actor, skillKey) {
-  const paths = SKILL_PATH_PATTERNS.map((pattern) => pattern.replace("{skill}", skillKey));
-  const found = readFirstNumber(actor, paths);
-  const value = found ? clampRank(found.value) : 0;
   const definition = TRAINER_SKILLS.find((skill) => skill.key === skillKey);
+  const objectPaths = SKILL_OBJECT_PATH_PATTERNS.map((pattern) => pattern.replace("{skill}", skillKey));
+  const foundObject = readFirstObject(actor, objectPaths);
+  const legacyPaths = SKILL_LEGACY_NUMBER_PATH_PATTERNS.map((pattern) => pattern.replace("{skill}", skillKey));
+  const legacy = foundObject ? null : readFirstNumber(actor, legacyPaths);
+  const skillData = foundObject?.value;
+  const globalSkillBonus = readFirstNumber(actor, ["system.modifiers.skillBonus.total"])?.value ?? 0;
 
-  if (!found) warnMissing(actor, `skill ${skillKey}`, paths);
+  const base = skillData ? readFirstNumberInObject(skillData, ["value.value", "base", "value.base", "value"]) : null;
+  const bonus = skillData ? readFirstNumberInObject(skillData, ["value.mod", "value.bonus", "mod"]) : null;
+  let total = skillData ? readFirstNumberInObject(skillData, ["value.total", "total", "rankValue"]) : null;
+
+  if (total === null && (base !== null || bonus !== null)) {
+    total = (base ?? 0) + (bonus ?? 0);
+  }
+
+  if (total === null && typeof skillData?.rank === "string") {
+    total = rankSlugToValue(skillData.rank);
+  }
+
+  if (total === null && legacy) {
+    total = legacy.value;
+  }
+
+  const modifierBase = skillData ? readFirstNumberInObject(skillData, ["modifier.value", "modifier.base"]) : null;
+  const modifierBonus = skillData ? readFirstNumberInObject(skillData, ["modifier.mod", "modifier.bonus"]) : null;
+  let modifierTotal = skillData ? readFirstNumberInObject(skillData, ["modifier.total", "modifierTotal"]) : null;
+
+  if (modifierTotal === null && (modifierBase !== null || modifierBonus !== null)) {
+    modifierTotal = (modifierBase ?? 0) + (modifierBonus ?? 0) + globalSkillBonus;
+  }
+
+  const missing = total === null;
+  const value = clampRank(total ?? 0);
+  const modTotal = Math.trunc(Number(modifierTotal ?? 0)) || 0;
+  const diceCount = value > 0 ? Math.min(value, 6) : 0;
+  const source = foundObject?.source ?? legacy?.source ?? "default";
+
+  if (missing) warnMissing(actor, `skill ${skillKey}`, [...objectPaths, ...legacyPaths]);
 
   return {
     key: skillKey,
@@ -69,8 +111,18 @@ export function getSkillRank(actor, skillKey) {
     value,
     rank: value,
     rankLabel: RANK_LABELS[value] ?? RANK_LABELS[0],
-    source: found?.source ?? "default",
-    missing: !found
+    base: base ?? value,
+    bonus: bonus ?? 0,
+    total: value,
+    modifierBase: modifierBase ?? modTotal,
+    modifierBonus: modifierBonus ?? 0,
+    modifierTotal: modTotal,
+    diceCount,
+    diceFormula: formatDiceFormula(diceCount, modTotal),
+    totalDetail: formatTotalDetail(base, bonus, value, missing),
+    modifierDetail: formatTotalDetail(modifierBase, modifierBonus, modTotal, false),
+    source,
+    missing
   };
 }
 
@@ -84,9 +136,10 @@ export function calculatePR(actor, mode = "work", options = {}) {
   const level = getTrainerLevel(actor, options);
   const power = getPower(actor, options);
   const bestSkill = getBestSkill(actor, mode);
+  const selectedSkill = options.skillKey ? getSkillRank(actor, options.skillKey) : bestSkill;
   const levelPR = Math.max(1, Math.floor(level.value / 10));
   const powerPR = Math.floor(power.value / 2);
-  const skillPR = bestSkill.value;
+  const skillPR = selectedSkill.value;
   const totalPR = levelPR + powerPR + skillPR;
 
   return {
@@ -95,12 +148,15 @@ export function calculatePR(actor, mode = "work", options = {}) {
     level,
     power,
     bestSkill,
+    selectedSkill,
+    skill: selectedSkill,
+    usesBestSkill: selectedSkill.key === bestSkill.key,
     levelPR,
     powerPR,
     skillPR,
     totalPR,
     totalPRQ: toPRQ(totalPR),
-    detail: `Niveau ${level.value} = ${levelPR} PR; Power ${power.value} = ${powerPR} PR; ${bestSkill.label} ${bestSkill.rankLabel} = ${skillPR} PR`
+    detail: `Niveau ${level.value} = ${levelPR} PR; Power ${power.value} = ${powerPR} PR; ${selectedSkill.label} ${selectedSkill.rankLabel} (${selectedSkill.totalDetail}) = ${skillPR} PR`
   };
 }
 
@@ -121,20 +177,24 @@ export function formatPRQ(prq) {
   return `${whole} ${quarter}/4 PR`;
 }
 
-export function getSkillOptions(actor, selectedKey = "athletics") {
-  return TRAINER_SKILLS.map((skill) => {
+export function getSkillOptions(actor, selectedKey = "generalEd", skillKeys = MAINTENANCE_SKILL_KEYS) {
+  return skillKeys.map((key) => TRAINER_SKILLS.find((skill) => skill.key === key) ?? { key, label: key }).map((skill) => {
     const rank = actor ? getSkillRank(actor, skill.key) : null;
     return {
       ...skill,
       selected: skill.key === selectedKey,
       rank: rank?.value ?? 0,
+      total: rank?.total ?? 0,
+      totalDetail: rank?.totalDetail ?? "0",
+      modifierTotal: rank?.modifierTotal ?? 0,
+      diceFormula: rank?.diceFormula ?? "0d6",
       rankLabel: rank?.rankLabel ?? RANK_LABELS[0]
     };
   });
 }
 
 export function getWorkRateForRank(rank) {
-  const configuredMinimum = Number(game.settings?.get?.(MODULE_ID, "minimumWorkRate") ?? 0) || 0;
+  const configuredMinimum = Number(globalThis.game?.settings?.get?.(MODULE_ID, "minimumWorkRate") ?? 0) || 0;
   return Math.max(WORK_RATES[clampRank(rank)] ?? 0, configuredMinimum);
 }
 
@@ -151,11 +211,31 @@ function readFirstNumber(actor, paths) {
   return null;
 }
 
+function readFirstObject(actor, paths) {
+  for (const path of paths) {
+    const value = readPath(actor, path);
+    if (value && typeof value === "object" && !Array.isArray(value)) return { value, source: path };
+  }
+  return null;
+}
+
+function readFirstNumberInObject(source, paths) {
+  for (const path of paths) {
+    const value = coerceNumber(readNested(source, path));
+    if (value !== null) return value;
+  }
+  return null;
+}
+
 function readPath(actor, path) {
   if (!actor || !path) return undefined;
-  if (globalThis.foundry?.utils?.getProperty) return foundry.utils.getProperty(actor, path);
+  if (globalThis.foundry?.utils?.getProperty) return globalThis.foundry.utils.getProperty(actor, path);
 
   return path.split(".").reduce((value, key) => value?.[key], actor);
+}
+
+function readNested(source, path) {
+  return path.split(".").reduce((value, key) => value?.[key], source);
 }
 
 function coerceNumber(raw) {
@@ -178,10 +258,37 @@ function readPositiveInteger(value) {
 function clampRank(value) {
   const number = Math.trunc(Number(value));
   if (!Number.isFinite(number)) return 0;
-  return Math.min(7, Math.max(0, number));
+  return Math.min(8, Math.max(0, number));
+}
+
+function rankSlugToValue(rank) {
+  switch (String(rank ?? "").toLowerCase()) {
+    case "pathetic": return 1;
+    case "untrained": return 2;
+    case "novice": return 3;
+    case "adept": return 4;
+    case "expert": return 5;
+    case "master": return 6;
+    case "virtuoso":
+    case "virtuose": return 8;
+    default: return null;
+  }
+}
+
+function formatDiceFormula(diceCount, modifier) {
+  if (!modifier) return `${diceCount}d6`;
+  return `${diceCount}d6${modifier > 0 ? "+" : ""}${modifier}`;
+}
+
+function formatTotalDetail(base, bonus, total, missing) {
+  if (missing) return "Non detecte";
+  if (base !== null && bonus !== null && bonus !== 0) return `${base} ${bonus > 0 ? "+" : ""}${bonus} = ${total}`;
+  if (base !== null && bonus !== null && base !== total) return `${base} = ${total}`;
+  if (base !== null && bonus !== null) return `${base}`;
+  return `${total}`;
 }
 
 function warnMissing(actor, label, paths) {
-  if (!game.settings?.get?.(MODULE_ID, "debug")) return;
+  if (!globalThis.game?.settings?.get?.(MODULE_ID, "debug")) return;
   console.warn(`${MODULE_ID} | Donnee PTR introuvable pour ${actor?.name ?? "Actor"}: ${label}. Chemins testes:`, paths);
 }
