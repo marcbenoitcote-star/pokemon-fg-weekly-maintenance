@@ -215,8 +215,9 @@ export const POKEMON_HARVEST_OPTIONS = [
     label: "Fossil Research",
     category: "Récolte professionnelle",
     costPRQ: ACTIVITY_COSTS_PRQ.professionalPokemonHarvest,
-    resultType: HARVEST_RESULT_TYPES.info,
-    resultLabel: "Recherche fossile à gérer selon la table",
+    resultType: HARVEST_RESULT_TYPES.rollTable,
+    resultUuid: "Compendium.ptu.rolltables.RollTable.nExmlR2WmxPcWdKY",
+    resultLabel: "Table Fossil Research",
     skipPokemonRequirement: true,
     requiresPaleontologyConfirmation: true
   },

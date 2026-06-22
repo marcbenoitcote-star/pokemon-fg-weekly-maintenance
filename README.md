@@ -88,7 +88,7 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Confirmer une récolte simple avec un Pokémon détecté, puis vérifier le coût `2 PR` et le résultat dans le chat.
 - Confirmer une récolte simple avec un nom manuel et la case de possession cochée.
 - Tester une récolte RollTable (`Mushroom Harvest`, `Fortune`, `Herb Growth` ou `Pickup`) et vérifier qu'une table est lancée dans le chat.
-- Tester `Fossil Research`: aucun Pokémon ne doit être demandé, seulement la confirmation `Field of Study: Paleontology`.
+- Tester `Fossil Research`: aucun Pokémon ne doit être demandé, seulement la confirmation `Field of Study: Paleontology`, puis la RollTable Fossil Research doit être lancée dans le chat.
 - Tester `Juicer - Rare Candy` avec dépôt de `Shuckle's Berry Juice`, puis avec la case de confirmation manuelle.
 - Vérifier que `Juicer - Rare Candy` ajoute le Rare Candy si possible, mais demande de retirer `Shuckle's Berry Juice` manuellement.
 - Tester `Nectar Dancer` avec deux Oricorio détectés, puis avec deux noms manuels.
