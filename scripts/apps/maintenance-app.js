@@ -71,7 +71,7 @@ export class PfgMaintenanceApp extends Application {
   }
 
   get actor() {
-    return this.state.actorId ? game.actors?.get?.(this.state.actorId) ?? null : null;
+    return getActorByKey(this.state.actorId);
   }
 
   getData() {
@@ -111,9 +111,9 @@ export class PfgMaintenanceApp extends Application {
       isSummaryStep: this.state.step === "summary",
       hasTrainers: trainers.length > 0,
       trainers: trainers.map((trainer) => ({
-        id: trainer.id,
+        id: getActorKey(trainer),
         name: trainer.name,
-        selected: trainer.id === this.state.actorId
+        selected: getActorKey(trainer) === this.state.actorId
       })),
       actor,
       actorName: actor?.name ?? "",
@@ -152,7 +152,7 @@ export class PfgMaintenanceApp extends Application {
     html.on("click", "[data-action]", (event) => {
       event.preventDefault();
       const action = event.currentTarget.dataset.action;
-      this.handleAction(action, event.currentTarget.closest("form") ?? html).catch((error) => {
+      this.handleAction(action, event.currentTarget.closest("form") ?? html, event.currentTarget).catch((error) => {
         console.error(`${MODULE_ID} | Action ${action} impossible.`, error);
         ui.notifications.error(`Entretien hebdomadaire: ${error.message ?? error}`);
       });
@@ -160,8 +160,11 @@ export class PfgMaintenanceApp extends Application {
 
     html.on("change", "select[name='actorId']", (event) => {
       this.readForm(event.currentTarget.closest("form") ?? html);
-      this.state.step = this.state.actorId ? "pr" : "trainer";
-      this.resetActivityState();
+      const actor = this.actor;
+      if (actor) {
+        this.selectTrainer(actor);
+        return;
+      }
       this.render(false);
     });
 
@@ -171,16 +174,28 @@ export class PfgMaintenanceApp extends Application {
     });
   }
 
-  async handleAction(action, html) {
+  async handleAction(action, html, control = null) {
     this.readForm(html);
 
-    if (action === "select-trainer") {
-      if (!this.actor) {
-        ui.notifications.warn("Choisis un Trainer avant de continuer.");
+    if (action === "choose-trainer") {
+      const actor = getActorByKey(control?.dataset?.actorId);
+      if (!actor) {
+        ui.notifications.warn("Trainer introuvable. Recharge la fenêtre et réessaie.");
+        this.debugSelection("choose-trainer-missing", control?.dataset?.actorId);
         return;
       }
-      this.state.step = "pr";
-      this.render(false);
+      this.selectTrainer(actor);
+      return;
+    }
+
+    if (action === "select-trainer") {
+      const actor = this.actor;
+      if (!actor) {
+        ui.notifications.warn("Choisis un Trainer avant de continuer.");
+        this.debugSelection("select-trainer-missing", this.state.actorId);
+        return;
+      }
+      this.selectTrainer(actor);
       return;
     }
 
@@ -246,7 +261,7 @@ export class PfgMaintenanceApp extends Application {
     if (!form) return;
 
     const data = new FormData(form);
-    if (data.has("actorId")) this.state.actorId = stringValue(data.get("actorId")) || this.state.actorId;
+    if (data.has("actorId")) this.state.actorId = normalizeActorKey(data.get("actorId")) || this.state.actorId;
     if (data.has("manualLevel")) this.state.manualLevel = stringValue(data.get("manualLevel"));
     if (data.has("manualPower")) this.state.manualPower = stringValue(data.get("manualPower"));
     if (data.has("weekName")) this.state.calendar.weekName = stringValue(data.get("weekName"));
@@ -497,6 +512,24 @@ export class PfgMaintenanceApp extends Application {
     this.state.currentActivity = null;
     this.state.finalized = false;
   }
+
+  selectTrainer(actor) {
+    this.state.actorId = getActorKey(actor);
+    this.state.step = "pr";
+    this.resetActivityState();
+    this.debugSelection("select-trainer", this.state.actorId, actor);
+    this.render(false);
+  }
+
+  debugSelection(scope, actorId, actor = null) {
+    if (!setting(SETTINGS.debug, false)) return;
+    console.log(`${MODULE_ID} | ${scope}`, {
+      actorId,
+      resolved: Boolean(actor ?? getActorByKey(actorId)),
+      actorName: (actor ?? getActorByKey(actorId))?.name ?? null,
+      trainerCount: getAvailableTrainers().length
+    });
+  }
 }
 
 function getAvailableTrainers() {
@@ -504,6 +537,24 @@ function getAvailableTrainers() {
     .filter((actor) => actor.type === "character")
     .filter((actor) => game.user?.isGM || actor.isOwner || actor.testUserPermission?.(game.user, "OWNER"))
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function getActorKey(actor) {
+  return String(actor?.id ?? actor?._id ?? actor?.uuid ?? "");
+}
+
+function normalizeActorKey(value) {
+  return String(value ?? "").trim();
+}
+
+function getActorByKey(actorKey) {
+  const key = normalizeActorKey(actorKey);
+  if (!key) return null;
+
+  const direct = game.actors?.get?.(key);
+  if (direct) return direct;
+
+  return game.actors?.find?.((actor) => actor.id === key || actor._id === key || actor.uuid === key) ?? null;
 }
 
 function setting(key, fallback) {

@@ -64,6 +64,14 @@
             {{/each}}
           </select>
         </label>
+        <div class="pfg-trainer-list">
+          {{#each trainers}}
+            <button type="button" class="pfg-trainer-choice {{#if selected}}selected{{/if}}" data-action="choose-trainer" data-actor-id="{{id}}">
+              <i class="fas fa-user"></i>
+              <span>{{name}}</span>
+            </button>
+          {{/each}}
+        </div>
       {{else}}
         <p class="pfg-warning">Aucun Actor de type character disponible pour cet utilisateur.</p>
       {{/if}}

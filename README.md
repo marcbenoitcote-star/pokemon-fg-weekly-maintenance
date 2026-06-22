@@ -13,6 +13,7 @@ Cette version livre l'étape 1 du cahier des charges:
 - Detection basique de Simple Calendar Reborn si son API est disponible, sinon semaine manuelle.
 - Integration ciblee avec `Fireblight-Studios/foundryvtt-simple-calendar` (`foundryvtt-simple-calendar-reborn`).
 - Affichage de la date Simple Calendar actuelle des l'ecran de selection Trainer.
+- Selection Trainer robuste par menu deroulant ou bouton direct, avec resolution par `id`, `_id` ou `uuid`.
 - Verrouillage d'une semaine finalisée via `flags.pokemon-fg-weekly-maintenance.weeks`.
 - Activité complète `Petit Travail Hebdomadaire`.
 - Jet `1d6 x taux du rang`, résumé chat et application optionnelle des gains.
