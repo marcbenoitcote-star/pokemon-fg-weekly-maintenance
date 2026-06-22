@@ -277,43 +277,70 @@
         </dl>
       {{/if}}
 
-      <div class="pfg-two-cols">
-        <label>
-          Pokémon détecté
-          <select name="harvestPokemonId" {{#if harvest.locked}}disabled{{/if}}>
-            <option value="">Nom manuel / non listé</option>
-            {{#each harvest.pokemonOptions}}
-              <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
-            {{/each}}
-          </select>
-        </label>
-        <label class="pfg-check">
-          <input type="checkbox" name="harvestOwnsPokemon" {{#if harvest.ownsPokemon}}checked{{/if}} {{#if harvest.locked}}disabled{{/if}}>
-          Je confirme posséder le Pokémon requis
-        </label>
-      </div>
-
-      <div class="pfg-two-cols">
-        <label>
-          Nom du Pokémon
-          <input type="text" name="harvestPokemonName" value="{{harvest.pokemonName}}" placeholder="Nom du Pokémon" {{#if harvest.locked}}disabled{{/if}}>
-        </label>
-        {{#if harvest.requiresSecondPokemon}}
+      {{#if harvest.requiresPokemon}}
+        <div class="pfg-two-cols">
           <label>
-            Deuxième Oricorio
-            <input type="text" name="harvestSecondPokemonName" value="{{harvest.secondPokemonName}}" placeholder="Nom du deuxième Oricorio" {{#if harvest.locked}}disabled{{/if}}>
+            Pokémon détecté
+            <select name="harvestPokemonId" {{#if harvest.locked}}disabled{{/if}}>
+              <option value="">Nom manuel / non listé</option>
+              {{#each harvest.pokemonOptions}}
+                <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+              {{/each}}
+            </select>
           </label>
-        {{/if}}
-      </div>
+          <label class="pfg-check">
+            <input type="checkbox" name="harvestOwnsPokemon" {{#if harvest.ownsPokemon}}checked{{/if}} {{#if harvest.locked}}disabled{{/if}}>
+            Je confirme posséder le Pokémon requis
+          </label>
+        </div>
+
+        <div class="pfg-two-cols">
+          <label>
+            Nom du Pokémon
+            <input type="text" name="harvestPokemonName" value="{{harvest.pokemonName}}" placeholder="Nom du Pokémon" {{#if harvest.locked}}disabled{{/if}}>
+          </label>
+          {{#if harvest.requiresSecondPokemon}}
+            <label>
+              Deuxième Oricorio
+              <input type="text" name="harvestSecondPokemonName" value="{{harvest.secondPokemonName}}" placeholder="Nom du deuxième Oricorio" {{#if harvest.locked}}disabled{{/if}}>
+            </label>
+          {{/if}}
+        </div>
+      {{/if}}
+
+      {{#if harvest.requiresPaleontologyConfirmation}}
+        <label class="pfg-check">
+          <input type="checkbox" name="harvestPaleontologyConfirmed" {{#if harvest.paleontologyConfirmed}}checked{{/if}} {{#if harvest.locked}}disabled{{/if}}>
+          Je confirme que le Trainer possède Field of Study: Paleontology
+        </label>
+      {{/if}}
+
+      {{#if harvest.requiresRareCandyIngredient}}
+        <div class="pfg-drop-zone {{#if harvest.rareCandyIngredientConfirmed}}ready{{/if}}" data-drop-target="rareCandyIngredient">
+          <i class="fas fa-hand"></i>
+          <span>
+            <strong>Shuckle's Berry Juice</strong>
+            {{#if harvest.rareCandyIngredientName}}
+              <small>Déposé: {{harvest.rareCandyIngredientName}}</small>
+            {{else}}
+              <small>Glisser l'item ici, ou cocher la confirmation manuelle ci-dessous.</small>
+            {{/if}}
+          </span>
+        </div>
+        <label class="pfg-check">
+          <input type="checkbox" name="harvestRareCandyIngredientConfirmed" {{#if harvest.rareCandyIngredientConfirmed}}checked{{/if}} {{#if harvest.locked}}disabled{{/if}}>
+          Je confirme posséder Shuckle's Berry Juice et le retirer manuellement
+        </label>
+      {{/if}}
 
       {{#if harvest.detectedOricorioLabel}}
         <p class="pfg-note">Oricorio détectés: {{harvest.detectedOricorioLabel}}</p>
       {{/if}}
-      {{#if harvest.selectedOption.requiresFeatUuid}}
-        <p class="pfg-note">Feat requis: {{harvest.selectedOption.requiresFeatUuid}}</p>
+      {{#if harvest.requiresPaleontologyConfirmation}}
+        <p class="pfg-note">Aucun Pokémon requis pour Fossil Research; seule la confirmation Paleontology est demandée.</p>
       {{/if}}
-      {{#if harvest.selectedOption.requiresItemUuid}}
-        <p class="pfg-note">Item requis: {{harvest.selectedOption.requiresItemUuid}}</p>
+      {{#if harvest.requiresRareCandyIngredient}}
+        <p class="pfg-note">Le module ajoute le Rare Candy si possible, mais ne retire pas automatiquement Shuckle's Berry Juice.</p>
       {{/if}}
 
       {{#if harvest.locked}}
@@ -446,7 +473,7 @@
               <dd>{{currentActivity.harvestLabel}} <small>{{currentActivity.harvestCategory}}</small></dd>
             </div>
             <div>
-              <dt>Pokémon</dt>
+              <dt>{{#if currentActivity.usesPokemon}}Pokémon{{else}}Prérequis{{/if}}</dt>
               <dd>{{currentActivity.pokemonNames}}</dd>
             </div>
             <div>

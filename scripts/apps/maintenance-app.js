@@ -27,7 +27,7 @@ import {
   saveWeek,
   unlockWeek
 } from "../services/calendar-service.js";
-import { addItemToActor, addMoney, actorHasSourceItem, getMoney } from "../services/item-service.js";
+import { addItemToActor, addMoney, getMoney, resolveDroppedItem } from "../services/item-service.js";
 import { getOwnedPokemonForTrainer } from "../services/pokemon-service.js";
 import { postActivitySummary, postFinalSummary, postRollCard } from "../services/chat-service.js";
 
@@ -74,7 +74,11 @@ export class PfgMaintenanceApp extends Application {
         pokemonId: "",
         pokemonName: "",
         secondPokemonName: "",
-        ownsPokemon: false
+        ownsPokemon: false,
+        paleontologyConfirmed: false,
+        rareCandyIngredientConfirmed: false,
+        rareCandyIngredientName: "",
+        rareCandyIngredientUuid: ""
       },
       activities: [],
       currentActivity: null,
@@ -203,9 +207,25 @@ export class PfgMaintenanceApp extends Application {
       this.updateFieldState(event.currentTarget);
     });
 
-    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed']", (event) => {
       this.updateFieldState(event.currentTarget);
       this.render(false);
+    });
+
+    html.on("dragover", ".pfg-drop-zone[data-drop-target='rareCandyIngredient']", (event) => {
+      event.preventDefault();
+      event.currentTarget.classList.add("dragging");
+    });
+
+    html.on("dragleave", ".pfg-drop-zone[data-drop-target='rareCandyIngredient']", (event) => {
+      event.currentTarget.classList.remove("dragging");
+    });
+
+    html.on("drop", ".pfg-drop-zone[data-drop-target='rareCandyIngredient']", (event) => {
+      this.handleHarvestDrop(event).catch((error) => {
+        console.error(`${MODULE_ID} | Drop récolte impossible.`, error);
+        ui.notifications.error(`Récolte Pokémon: ${error.message ?? error}`);
+      });
     });
   }
 
@@ -344,6 +364,8 @@ export class PfgMaintenanceApp extends Application {
     if (data.has("harvestPokemonName")) this.state.harvest.pokemonName = stringValue(data.get("harvestPokemonName"));
     if (data.has("harvestSecondPokemonName")) this.state.harvest.secondPokemonName = stringValue(data.get("harvestSecondPokemonName"));
     if (form.querySelector?.("[name='harvestOwnsPokemon']")) this.state.harvest.ownsPokemon = data.has("harvestOwnsPokemon");
+    if (form.querySelector?.("[name='harvestPaleontologyConfirmed']")) this.state.harvest.paleontologyConfirmed = data.has("harvestPaleontologyConfirmed");
+    if (form.querySelector?.("[name='harvestRareCandyIngredientConfirmed']")) this.state.harvest.rareCandyIngredientConfirmed = data.has("harvestRareCandyIngredientConfirmed");
   }
 
   updateFieldState(field) {
@@ -369,6 +391,8 @@ export class PfgMaintenanceApp extends Application {
     if (name === "harvestPokemonName") this.state.harvest.pokemonName = stringValue(field.value);
     if (name === "harvestSecondPokemonName") this.state.harvest.secondPokemonName = stringValue(field.value);
     if (name === "harvestOwnsPokemon") this.state.harvest.ownsPokemon = Boolean(field.checked);
+    if (name === "harvestPaleontologyConfirmed") this.state.harvest.paleontologyConfirmed = Boolean(field.checked);
+    if (name === "harvestRareCandyIngredientConfirmed") this.state.harvest.rareCandyIngredientConfirmed = Boolean(field.checked);
   }
 
   getWorkData(actor, totalPRQ, spentPRQ) {
@@ -428,12 +452,18 @@ export class PfgMaintenanceApp extends Application {
       ? (lockedActivity.secondPokemonName ?? "")
       : (this.state.harvest.secondPokemonName || (selectedOption?.requiresTwoOricorio ? detectedOricorioNames[1] : "") || "");
     const ownsPokemon = lockedActivity ? true : Boolean(selectedPokemon || detectedOricorioNames.length >= 2 || this.state.harvest.ownsPokemon);
+    const paleontologyConfirmed = lockedActivity ? Boolean(lockedActivity.paleontologyConfirmed) : Boolean(this.state.harvest.paleontologyConfirmed);
+    const rareCandyIngredientConfirmed = lockedActivity ? Boolean(lockedActivity.rareCandyIngredientConfirmed) : Boolean(this.state.harvest.rareCandyIngredientConfirmed);
+    const rareCandyIngredientName = lockedActivity ? (lockedActivity.rareCandyIngredientName ?? "") : this.state.harvest.rareCandyIngredientName;
+    const rareCandyIngredientUuid = lockedActivity ? (lockedActivity.rareCandyIngredientUuid ?? "") : this.state.harvest.rareCandyIngredientUuid;
     const requirementErrors = lockedActivity ? [] : getHarvestRequirementErrors(actor, selectedOption, {
       pokemonName,
       secondPokemonName,
       ownsPokemon,
       selectedPokemon,
       detectedOricorioNames,
+      paleontologyConfirmed,
+      rareCandyIngredientConfirmed,
       remainingBefore
     });
     const costPRQ = lockedActivity?.costPRQ ?? selectedOption?.costPRQ ?? 0;
@@ -445,6 +475,10 @@ export class PfgMaintenanceApp extends Application {
       pokemonName,
       secondPokemonName,
       ownsPokemon,
+      paleontologyConfirmed,
+      rareCandyIngredientConfirmed,
+      rareCandyIngredientName,
+      rareCandyIngredientUuid,
       selectedOption: selectedOption ? {
         ...selectedOption,
         costLabel: formatPRQ(selectedOption.costPRQ),
@@ -467,6 +501,9 @@ export class PfgMaintenanceApp extends Application {
       remainingBeforeLabel: formatPRQ(remainingBefore),
       remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - (lockedActivity ? 0 : costPRQ))),
       requiresSecondPokemon: Boolean(selectedOption?.requiresTwoOricorio),
+      requiresPokemon: !selectedOption?.skipPokemonRequirement,
+      requiresPaleontologyConfirmation: Boolean(selectedOption?.requiresPaleontologyConfirmation),
+      requiresRareCandyIngredient: Boolean(selectedOption?.requiresRareCandyIngredient),
       locked: Boolean(lockedActivity),
       lockedResultStatus: lockedActivity?.resultStatus ?? "",
       lockedResultLabel: lockedActivity?.resultLabel ?? "",
@@ -575,7 +612,12 @@ export class PfgMaintenanceApp extends Application {
     const pokemonNames = [harvest.pokemonName, harvest.requiresSecondPokemon ? harvest.secondPokemonName : ""]
       .map((name) => stringValue(name))
       .filter(Boolean);
-    const pokemonNamesLabel = pokemonNames.join(", ") || "Pokémon confirmé";
+    const pokemonNamesLabel = option.skipPokemonRequirement
+      ? "Field of Study: Paleontology"
+      : (pokemonNames.join(", ") || "Pokémon confirmé");
+    const resultStatus = option.requiresRareCandyIngredient
+      ? `${result.status} Retirer ${harvest.rareCandyIngredientName || option.ingredientLabel || "Shuckle's Berry Juice"} manuellement de l'inventaire.`
+      : result.status;
     const activity = {
       key: ACTIVITY_KEYS.pokemonHarvest,
       isHarvest: true,
@@ -584,17 +626,22 @@ export class PfgMaintenanceApp extends Application {
       harvestKey: option.key,
       harvestLabel: option.label,
       harvestCategory: option.category,
+      usesPokemon: !option.skipPokemonRequirement,
       pokemonId: harvest.pokemonId,
-      pokemonName: harvest.pokemonName,
+      pokemonName: option.skipPokemonRequirement ? "" : harvest.pokemonName,
       secondPokemonName: harvest.requiresSecondPokemon ? harvest.secondPokemonName : "",
       pokemonNames: pokemonNamesLabel,
+      paleontologyConfirmed: harvest.paleontologyConfirmed,
+      rareCandyIngredientConfirmed: harvest.rareCandyIngredientConfirmed,
+      rareCandyIngredientName: harvest.rareCandyIngredientName,
+      rareCandyIngredientUuid: harvest.rareCandyIngredientUuid,
       costPRQ: option.costPRQ,
       costLabel: formatPRQ(option.costPRQ),
       resultType: option.resultType,
       resultTypeLabel: getHarvestResultTypeLabel(option.resultType),
       resultUuid: option.resultUuid ?? "",
       resultLabel: option.resultLabel ?? option.label,
-      resultStatus: result.status,
+      resultStatus,
       resultApplied: result.applied,
       summaryLine: `${option.label} avec ${pokemonNamesLabel}: ${option.resultLabel ?? "résultat à gérer"}`,
       rolls: [],
@@ -660,6 +707,46 @@ export class PfgMaintenanceApp extends Application {
       console.error(`${MODULE_ID} | Récolte Pokémon impossible.`, error);
       return { applied: false, status: `${option.resultLabel ?? option.label} à appliquer manuellement (${error.message ?? error}).` };
     }
+  }
+
+  async handleHarvestDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.remove("dragging");
+    if (this.state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest) {
+      ui.notifications.warn("Récolte déjà confirmée: le résultat est verrouillé.");
+      return;
+    }
+
+    this.readForm(event.currentTarget.closest("form"));
+
+    const transfer = event.originalEvent?.dataTransfer ?? event.dataTransfer;
+    const raw = transfer?.getData("text/plain") || transfer?.getData("application/json");
+    if (!raw) {
+      ui.notifications.warn("Aucune donnée d'item détectée dans le dépôt.");
+      return;
+    }
+
+    let dropData = null;
+    try {
+      dropData = JSON.parse(raw);
+    } catch {
+      ui.notifications.warn("Dépôt invalide. Glisse l'item depuis la fiche ou le compendium.");
+      return;
+    }
+
+    const item = await resolveDroppedItem(dropData);
+    const itemName = item?.name ?? dropData.name ?? "";
+    if (!looksLikeShuckleBerryJuice(itemName)) {
+      ui.notifications.warn("L'item déposé ne semble pas être Shuckle's Berry Juice.");
+      return;
+    }
+
+    this.state.harvest.rareCandyIngredientConfirmed = true;
+    this.state.harvest.rareCandyIngredientName = itemName || "Shuckle's Berry Juice";
+    this.state.harvest.rareCandyIngredientUuid = item?.uuid ?? dropData.uuid ?? dropData.documentUuid ?? "";
+    ui.notifications.info(`${this.state.harvest.rareCandyIngredientName} confirmé pour Juicer - Rare Candy.`);
+    this.render(false);
   }
 
   async postCurrentActivity() {
@@ -858,7 +945,11 @@ export class PfgMaintenanceApp extends Application {
       pokemonId: "",
       pokemonName: "",
       secondPokemonName: "",
-      ownsPokemon: false
+      ownsPokemon: false,
+      paleontologyConfirmed: false,
+      rareCandyIngredientConfirmed: false,
+      rareCandyIngredientName: "",
+      rareCandyIngredientUuid: ""
     };
   }
 
@@ -953,12 +1044,12 @@ function getHarvestRequirementErrors(actor, option, context) {
     errors.push(`PR insuffisants: ${formatPRQ(option.costPRQ)} requis.`);
   }
 
-  if (option.requiresFeatUuid && !actorHasSourceItem(actor, option.requiresFeatUuid)) {
-    errors.push("Fossil Research demande le feat requis sur la fiche du Trainer.");
+  if (option.requiresPaleontologyConfirmation && !context.paleontologyConfirmed) {
+    errors.push("Fossil Research demande de confirmer Field of Study: Paleontology sur le Trainer.");
   }
 
-  if (option.requiresItemUuid && !actorHasSourceItem(actor, option.requiresItemUuid)) {
-    errors.push("Juicer - Rare Candy demande le Juicer requis dans l'inventaire du Trainer.");
+  if (option.requiresRareCandyIngredient && !context.rareCandyIngredientConfirmed) {
+    errors.push("Juicer - Rare Candy demande de confirmer Shuckle's Berry Juice par dépôt ou case manuelle.");
   }
 
   if (option.requiresTwoOricorio) {
@@ -969,6 +1060,8 @@ function getHarvestRequirementErrors(actor, option, context) {
     return errors;
   }
 
+  if (option.skipPokemonRequirement) return errors;
+
   if (!context.ownsPokemon && !context.selectedPokemon) {
     errors.push("Confirme que tu possèdes le Pokémon qui permet cette récolte.");
   }
@@ -978,6 +1071,11 @@ function getHarvestRequirementErrors(actor, option, context) {
   }
 
   return errors;
+}
+
+function looksLikeShuckleBerryJuice(value) {
+  const normalized = normalizeSearchText(value);
+  return normalized.includes("shucklesberryjuice") || normalized.includes("shuckleberryjuice");
 }
 
 function pokemonLooksLikeSpecies(pokemon, speciesName) {

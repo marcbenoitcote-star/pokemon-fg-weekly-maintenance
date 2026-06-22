@@ -217,7 +217,8 @@ export const POKEMON_HARVEST_OPTIONS = [
     costPRQ: ACTIVITY_COSTS_PRQ.professionalPokemonHarvest,
     resultType: HARVEST_RESULT_TYPES.info,
     resultLabel: "Recherche fossile à gérer selon la table",
-    requiresFeatUuid: "Compendium.ptu.feats.Item.DNptPA26NZ8dpwcc"
+    skipPokemonRequirement: true,
+    requiresPaleontologyConfirmation: true
   },
   {
     key: "nectarDancer",
@@ -245,7 +246,8 @@ export const POKEMON_HARVEST_OPTIONS = [
     resultType: HARVEST_RESULT_TYPES.item,
     resultUuid: "Compendium.ptu.items.Item.35X4PEOomwgAFvwa",
     resultLabel: "Rare Candy",
-    requiresItemUuid: "Compendium.ptu.items.Item.7fMNsUfMhbr6ZB8W"
+    requiresRareCandyIngredient: true,
+    ingredientLabel: "Shuckle's Berry Juice"
   },
   {
     key: "heartGift",

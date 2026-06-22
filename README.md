@@ -25,7 +25,7 @@ Cette version livre l'étape 1 du cahier des charges:
 - Activité complète `Récolte Pokémon` avec coûts 2 PR, 3 PR, 4 PR et 9 PR selon la récolte.
 - Liste active des récoltes: Honey Gather, Mushroom Harvest, Dream Mist, Milk Collection, Fortune, Herb Growth, Juicer, Fossil Research, Nectar Dancer, Pickup, Rare Candy, Heart Gift et Gather Unown.
 - Confirmation du Pokémon possédé par sélection d'un Actor Pokémon détecté ou par nom manuel.
-- Validation des prérequis spéciaux: feat `Fossil Research`, item `Juicer` pour Rare Candy, et 2 Oricorio pour Nectar Dancer.
+- Validation des prérequis spéciaux: confirmation `Field of Study: Paleontology` pour Fossil Research, confirmation ou dépôt de `Shuckle's Berry Juice` pour Rare Candy, et 2 Oricorio pour Nectar Dancer.
 - Application de résultat Récolte: ajout d'item depuis UUID, lancement de RollTable, ou information chat selon le type.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
@@ -88,8 +88,9 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Confirmer une récolte simple avec un Pokémon détecté, puis vérifier le coût `2 PR` et le résultat dans le chat.
 - Confirmer une récolte simple avec un nom manuel et la case de possession cochée.
 - Tester une récolte RollTable (`Mushroom Harvest`, `Fortune`, `Herb Growth` ou `Pickup`) et vérifier qu'une table est lancée dans le chat.
-- Tester `Fossil Research` avec et sans le feat requis sur le Trainer.
-- Tester `Juicer - Rare Candy` avec et sans l'item Juicer requis.
+- Tester `Fossil Research`: aucun Pokémon ne doit être demandé, seulement la confirmation `Field of Study: Paleontology`.
+- Tester `Juicer - Rare Candy` avec dépôt de `Shuckle's Berry Juice`, puis avec la case de confirmation manuelle.
+- Vérifier que `Juicer - Rare Candy` ajoute le Rare Candy si possible, mais demande de retirer `Shuckle's Berry Juice` manuellement.
 - Tester `Nectar Dancer` avec deux Oricorio détectés, puis avec deux noms manuels.
 - Utiliser `Retour` après une récolte confirmée: le résultat doit rester verrouillé et impossible à relancer.
 - Cliquer `Nouvelle activité`: les PR restants doivent être conservés et l'ancienne récolte doit rester dans l'historique.

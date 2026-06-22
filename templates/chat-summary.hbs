@@ -39,7 +39,7 @@
     {{#if activity.isHarvest}}
       <h3>Récolte Pokémon - {{actor.name}}</h3>
       <p><strong>Récolte:</strong> {{activity.harvestLabel}} ({{activity.harvestCategory}})</p>
-      <p><strong>Pokémon:</strong> {{activity.pokemonNames}}</p>
+      <p><strong>{{#if activity.usesPokemon}}Pokémon{{else}}Prérequis{{/if}}:</strong> {{activity.pokemonNames}}</p>
       <p><strong>Cout:</strong> {{activity.costLabel}}</p>
       <p><strong>Résultat:</strong> {{activity.resultLabel}} - {{activity.resultTypeLabel}}</p>
       {{#if activity.resultUuid}}
