@@ -152,21 +152,21 @@ export class PfgMaintenanceApp extends Application {
     html.on("click", "[data-action]", (event) => {
       event.preventDefault();
       const action = event.currentTarget.dataset.action;
-      this.handleAction(action, html).catch((error) => {
+      this.handleAction(action, event.currentTarget.closest("form") ?? html).catch((error) => {
         console.error(`${MODULE_ID} | Action ${action} impossible.`, error);
         ui.notifications.error(`Entretien hebdomadaire: ${error.message ?? error}`);
       });
     });
 
-    html.on("change", "select[name='actorId']", () => {
-      this.readForm(html);
+    html.on("change", "select[name='actorId']", (event) => {
+      this.readForm(event.currentTarget.closest("form") ?? html);
       this.state.step = this.state.actorId ? "pr" : "trainer";
       this.resetActivityState();
       this.render(false);
     });
 
-    html.on("change", "select[name='workSkillKey'], input[name='workCount']", () => {
-      this.readForm(html);
+    html.on("change", "select[name='workSkillKey'], input[name='workCount']", (event) => {
+      this.readForm(event.currentTarget.closest("form") ?? html);
       this.render(false);
     });
   }
@@ -242,7 +242,7 @@ export class PfgMaintenanceApp extends Application {
 
   readForm(html) {
     const root = html?.[0] ?? html;
-    const form = root?.querySelector?.("form");
+    const form = root?.matches?.("form") ? root : root?.querySelector?.("form");
     if (!form) return;
 
     const data = new FormData(form);

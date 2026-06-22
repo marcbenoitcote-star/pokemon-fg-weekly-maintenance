@@ -1,17 +1,36 @@
 import { MODULE_ID } from "../data/constants.js";
 
+export const SIMPLE_CALENDAR_MODULE_ID = "foundryvtt-simple-calendar-reborn";
+export const SIMPLE_CALENDAR_MANIFEST = "https://github.com/Fireblight-Studios/foundryvtt-simple-calendar/releases/latest/download/module.json";
+
 export function isSimpleCalendarRebornActive() {
-  return Boolean(
-    game.modules?.get?.("foundryvtt-simple-calendar")?.active ||
-    game.modules?.get?.("simple-calendar")?.active ||
-    game.modules?.get?.("foundryvtt-simple-calendar-reborn")?.active ||
-    globalThis.SimpleCalendar
-  );
+  const module = game.modules?.get?.(SIMPLE_CALENDAR_MODULE_ID);
+  return Boolean(module?.active && getSimpleCalendarApi());
+}
+
+export function getSimpleCalendarStatus() {
+  const module = game.modules?.get?.(SIMPLE_CALENDAR_MODULE_ID);
+  const api = getSimpleCalendarApi();
+  return {
+    moduleId: SIMPLE_CALENDAR_MODULE_ID,
+    manifest: SIMPLE_CALENDAR_MANIFEST,
+    installed: Boolean(module),
+    active: Boolean(module?.active),
+    apiAvailable: Boolean(api),
+    ready: Boolean(module?.active && api),
+    version: module?.version ?? module?.data?.version ?? module?.manifest?.version ?? ""
+  };
 }
 
 export function getCurrentWeekData(manual = {}) {
   const simple = readSimpleCalendar();
-  if (simple) return simple;
+  if (simple) {
+    return {
+      ...simple,
+      eventName: String(manual.eventName ?? "").trim(),
+      eventDescription: String(manual.eventDescription ?? "").trim()
+    };
+  }
 
   const weekName = String(manual.weekName ?? "").trim();
   const rpDate = String(manual.rpDate ?? "").trim();
@@ -22,8 +41,11 @@ export function getCurrentWeekData(manual = {}) {
   return {
     source: "manual",
     simpleCalendarActive: false,
+    simpleCalendarStatus: getSimpleCalendarStatus(),
     weekKey,
     calendarLabel: label,
+    dateLabel: label,
+    timeLabel: "",
     eventName,
     eventDescription: String(manual.eventDescription ?? "").trim()
   };
@@ -77,23 +99,37 @@ export async function unlockWeek(actor, weekKey) {
 
 function readSimpleCalendar() {
   try {
-    const api = globalThis.SimpleCalendar?.api ?? game.modules?.get?.("foundryvtt-simple-calendar")?.api;
-    if (!api) return null;
+    const status = getSimpleCalendarStatus();
+    const api = getSimpleCalendarApi();
+    if (!status.ready || !api) return null;
 
-    const timestamp = api.timestamp?.();
-    const currentDate = api.currentDateTime?.() ?? api.getCurrentDate?.() ?? api.currentDate?.();
-    const display = api.formatDateTime?.(currentDate) ?? api.formatDate?.(currentDate) ?? null;
-    const year = currentDate?.year ?? currentDate?.yearName ?? currentDate?.yearNumeric ?? "year";
-    const month = currentDate?.month ?? currentDate?.monthName ?? currentDate?.monthNumeric ?? "month";
-    const day = currentDate?.day ?? currentDate?.dayOfMonth ?? currentDate?.dayNumeric ?? timestamp ?? "day";
-    const week = currentDate?.week ?? currentDate?.weekOfYear ?? Math.max(1, Math.ceil(Number(day || 1) / 7));
-    const calendarLabel = display || [year, month, day].filter(Boolean).join("-");
+    const display = safeCall(() => api.currentDateTimeDisplay?.());
+    const currentDate = safeCall(() => api.currentDateTime?.());
+    const timestamp = safeCall(() => api.timestamp?.());
+    const timestampDate = Number.isFinite(Number(timestamp))
+      ? safeCall(() => api.timestampToDate?.(Number(timestamp)))
+      : null;
+    const currentCalendar = safeCall(() => api.getCurrentCalendar?.());
+
+    const dateLabel = getDisplayDate(display, timestampDate, currentDate);
+    const timeLabel = getDisplayTime(display, timestampDate);
+    const calendarLabel = [dateLabel, timeLabel].filter(Boolean).join(" - ");
+    const week = getWeekIndex(api, timestamp, currentDate, timestampDate);
+    const year = currentDate?.year ?? timestampDate?.year ?? display?.year ?? "year";
+    const month = currentDate?.month ?? timestampDate?.month ?? display?.month ?? "month";
+    const calendarId = currentCalendar?.id ?? "active";
 
     return {
-      source: "simple-calendar",
+      source: "simple-calendar-reborn",
       simpleCalendarActive: true,
-      weekKey: slugify(`${year}-${month}-week-${week}`),
+      simpleCalendarStatus: status,
+      weekKey: slugify(`${calendarId}-${year}-${month}-week-${week}`),
       calendarLabel,
+      dateLabel,
+      timeLabel,
+      rawDate: currentDate ?? null,
+      displayData: display ?? timestampDate?.display ?? null,
+      timestamp: Number.isFinite(Number(timestamp)) ? Number(timestamp) : null,
       eventName: "",
       eventDescription: ""
     };
@@ -101,6 +137,54 @@ function readSimpleCalendar() {
     if (game.settings?.get?.(MODULE_ID, "debug")) {
       console.warn(`${MODULE_ID} | Simple Calendar detecte mais lecture impossible.`, error);
     }
+    return null;
+  }
+}
+
+function getSimpleCalendarApi() {
+  return globalThis.SimpleCalendar?.api ?? null;
+}
+
+function getDisplayDate(display, timestampDate, currentDate) {
+  const timestampDisplay = timestampDate?.display;
+  const date = display?.date ?? timestampDisplay?.date;
+  if (date) return String(date);
+
+  const year = currentDate?.year ?? timestampDate?.year;
+  const month = currentDate?.month ?? timestampDate?.month;
+  const day = currentDate?.day ?? timestampDate?.day;
+  return [year, month, day].filter((part) => part !== undefined && part !== null).join("-");
+}
+
+function getDisplayTime(display, timestampDate) {
+  return String(display?.time ?? timestampDate?.display?.time ?? "").trim();
+}
+
+function getWeekIndex(api, timestamp, currentDate, timestampDate) {
+  if (Number.isFinite(Number(timestamp))) {
+    const timeConfig = safeCall(() => api.getTimeConfiguration?.()) ?? {};
+    const weekdays = safeCall(() => api.getAllWeekdays?.()) ?? [];
+    const secondsPerMinute = positiveNumber(timeConfig.secondsInMinute, 60);
+    const minutesPerHour = positiveNumber(timeConfig.minutesInHour, 60);
+    const hoursPerDay = positiveNumber(timeConfig.hoursInDay, 24);
+    const daysPerWeek = Array.isArray(weekdays) && weekdays.length > 0 ? weekdays.length : 7;
+    const secondsPerWeek = secondsPerMinute * minutesPerHour * hoursPerDay * daysPerWeek;
+    if (secondsPerWeek > 0) return Math.floor(Number(timestamp) / secondsPerWeek);
+  }
+
+  const day = Number(currentDate?.day ?? timestampDate?.day ?? 0);
+  return Math.max(1, Math.ceil((Number.isFinite(day) ? day + 1 : 1) / 7));
+}
+
+function positiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
+function safeCall(callback) {
+  try {
+    return callback();
+  } catch {
     return null;
   }
 }

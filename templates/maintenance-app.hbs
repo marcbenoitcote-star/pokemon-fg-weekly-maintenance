@@ -39,6 +39,19 @@
   {{/if}}
 
   {{#if isTrainerStep}}
+    <section class="pfg-calendar-banner {{#if calendar.simpleCalendarActive}}ready{{else}}missing{{/if}}">
+      <div>
+        <h3>Calendrier</h3>
+        {{#if calendar.simpleCalendarActive}}
+          <p><strong>Date actuelle:</strong> {{calendar.dateLabel}}{{#if calendar.timeLabel}} - {{calendar.timeLabel}}{{/if}}</p>
+          <p class="pfg-calendar-source">Simple Calendar Reborn détecté: {{calendar.simpleCalendarStatus.moduleId}} {{calendar.simpleCalendarStatus.version}}</p>
+        {{else}}
+          <p><strong>Simple Calendar Reborn non détecté ou API non prête.</strong></p>
+          <p class="pfg-calendar-source">Module attendu: {{calendar.simpleCalendarStatus.moduleId}}</p>
+        {{/if}}
+      </div>
+    </section>
+
     <section class="pfg-panel">
       <h3>Sélection Trainer</h3>
       {{#if hasTrainers}}

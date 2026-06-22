@@ -11,6 +11,8 @@ Cette version livre l'étape 1 du cahier des charges:
 - Calcul des Points Rentability / PR avec stockage interne en quarts de PR (`PRQ`).
 - Overrides manuels pour le niveau et Power si les chemins PTR ne sont pas détectés.
 - Detection basique de Simple Calendar Reborn si son API est disponible, sinon semaine manuelle.
+- Integration ciblee avec `Fireblight-Studios/foundryvtt-simple-calendar` (`foundryvtt-simple-calendar-reborn`).
+- Affichage de la date Simple Calendar actuelle des l'ecran de selection Trainer.
 - Verrouillage d'une semaine finalisée via `flags.pokemon-fg-weekly-maintenance.weeks`.
 - Activité complète `Petit Travail Hebdomadaire`.
 - Jet `1d6 x taux du rang`, résumé chat et application optionnelle des gains.
@@ -41,7 +43,13 @@ https://github.com/marcbenoitcote-star/pokemon-fg-weekly-maintenance/releases/la
 
 3. Activer le module dans le monde PTR.
 
-Simple Calendar Reborn est optionnel. Si son API est disponible, le module tente de fabriquer une cle de semaine automatiquement. Sinon, l'application affiche les champs manuels `Nom de la semaine`, `Date RP` et `Evenement`.
+Simple Calendar Reborn est declare comme module relie dans le manifest:
+
+```text
+https://github.com/Fireblight-Studios/foundryvtt-simple-calendar/releases/latest/download/module.json
+```
+
+Si son API `SimpleCalendar.api` est disponible, le module lit `currentDateTimeDisplay()`, `currentDateTime()` et `timestamp()` pour afficher la date actuelle et fabriquer une cle de semaine automatiquement. Sinon, l'application affiche les champs manuels `Nom de la semaine`, `Date RP` et `Evenement`.
 
 ## Utilisation
 

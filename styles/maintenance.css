@@ -90,6 +90,33 @@
   background: rgba(255, 255, 255, 0.72);
 }
 
+.pfg-calendar-banner {
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.pfg-calendar-banner.ready {
+  background: rgba(85, 122, 65, 0.13);
+}
+
+.pfg-calendar-banner.missing {
+  background: rgba(168, 114, 48, 0.13);
+}
+
+.pfg-calendar-banner h3,
+.pfg-calendar-banner p {
+  margin: 0;
+}
+
+.pfg-calendar-banner p + p {
+  margin-top: 4px;
+}
+
+.pfg-calendar-source {
+  opacity: 0.72;
+}
+
 .pfg-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
