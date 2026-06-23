@@ -15,7 +15,16 @@
     <ol>
       {{#each activities}}
         {{#if isCrafting}}
-          <li>{{title}} - {{summaryLine}}, coût {{costLabel}}, {{moneyCostLabel}}</li>
+          <li>
+            {{title}} - {{summaryLine}}, coût {{costLabel}}, {{moneyCostLabel}}
+            {{#if isWeaponCraft}}
+              <ol>
+                {{#each weapon.summaryLines}}
+                  <li>{{this}}</li>
+                {{/each}}
+              </ol>
+            {{/if}}
+          </li>
         {{else}}
         {{#if isHarvest}}
           <li>
@@ -57,6 +66,15 @@
       <h3>⚙️ Fabrication — {{actor.name}}</h3>
       <p><strong>Objet fabriqué:</strong> {{activity.itemName}} × {{activity.quantity}}</p>
       <p><strong>Type:</strong> {{activity.craftTypeLabel}}</p>
+      {{#if activity.isWeaponCraft}}
+        <p><strong>Base:</strong> {{activity.weapon.categoryLabel}} - {{activity.weapon.baseLabel}}</p>
+        <p><strong>Moves:</strong> {{activity.weapon.moveLabels}}</p>
+        <ul>
+          {{#each activity.weapon.summaryLines}}
+            <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      {{/if}}
       <p><strong>Coût PR:</strong> {{activity.costLabel}}</p>
       <p><strong>Coût Pokédollars:</strong> {{activity.moneyCostLabel}}</p>
       {{#if activity.hasIngredients}}

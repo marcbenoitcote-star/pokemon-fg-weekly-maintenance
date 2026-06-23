@@ -90,6 +90,7 @@ function registerSettings() {
 function exposeApi() {
   game.pfgMaintenance = {
     open: (options = {}) => new PfgMaintenanceApp(options).render(true),
+    openWeaponCrafting: (options = {}) => new PfgMaintenanceApp({ ...options, startWeaponCrafting: true }).render(true),
     app: PfgMaintenanceApp,
     pr: PRService,
     calendar: CalendarService,

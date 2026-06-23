@@ -34,7 +34,9 @@ Cette version livre l'étape 1 du cahier des charges:
 - Bouton `Nouvel entretien` après finalisation pour repartir sur la date Simple Calendar actuelle.
 - Activité complète `Fabrication` avec journal de fabrication, drop de l'objet final, type, quantité, coût argent, ingrédients réservés et confirmation finale.
 - La Fabrication réserve les ingrédients au drop et ne retire argent/ingrédients qu'au moment de la confirmation.
-- Types Fabrication actifs: `Objet normal` à 1 PRQ par objet et `Armure` à 4 PRQ par armure. Le type `Arme` reste visible mais désactivé en attendant les règles détaillées.
+- Types Fabrication actifs: `Objet normal` à 1 PRQ par objet, `Arme` à 4 PRQ par arme et `Armure` à 4 PRQ par armure.
+- Constructeur `Arme`: base melee/ranged/magic/shield, coûts Pokédollars automatiques, 1 move Tiers 1, 1 move Tiers 2, restrictions two-handed/heavy, surtaxes Musical Weapon, règles GrantItem et description générée.
+- Macro dédiée `game.pfgMaintenance.openWeaponCrafting();` pour ouvrir directement la Fabrication d'arme.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
 L'étape Agriculture / Jardinage est visible comme emplacement de travail, mais pas encore active dans l'interface.
@@ -89,6 +91,12 @@ Flux MVP:
 7. Pour `Fabrication`, déposer l'objet final, choisir le type, la quantité, le coût argent et les ingrédients réservés, puis confirmer.
 8. Poster le résumé, appliquer les gains si souhaité, commencer une nouvelle activité avec les PR restants, puis terminer l'entretien.
 
+Macro directe pour la Fabrication d'arme:
+
+```js
+game.pfgMaintenance.openWeaponCrafting();
+```
+
 Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bouton `Appliquer les gains` demande confirmation avant de modifier `system.money`. Les Récoltes Pokémon appliquent leur résultat au moment de la confirmation quand l'item ou la RollTable est disponible, sinon le chat indique l'action manuelle à faire.
 
 ## Liste de test rapide
@@ -109,6 +117,11 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Déposer un objet final depuis un compendium ou la sidebar Items.
 - Tester `Objet normal`: quantité 4 doit coûter 1 PR.
 - Tester `Armure`: quantité 1 doit coûter 1 PR.
+- Tester `Arme`: choisir `Melee Weapon`, une base à deux mains, un move `Two-handed Only`, puis vérifier coût `1 PR`, coût Pokédollars automatique et item ajouté à l'inventaire.
+- Tester une arme magique musicale: choisir un move avec surtaxe Musical Weapon et vérifier que le coût Pokédollars inclut la surtaxe.
+- Tester `Shield Weapon`: Bouclier léger doit donner +1 Evasion et l'effet `VEJwFmRF7al1iVH9`; Bouclier lourd doit donner +2 Evasion et l'effet `5OY0BP3rdka8VYbJ`.
+- Vérifier que les moves `Heavy Only` ne sont pas proposés pour un Bouclier léger.
+- Vérifier que l'item d'arme créé contient les moves accordés et la description des bonus.
 - Entrer un coût Pokédollars total, puis un coût unitaire, et vérifier le total calculé.
 - Déposer des ingrédients depuis l'inventaire du Trainer: ils doivent être seulement réservés avant confirmation.
 - Cliquer `X` sur un ingrédient réservé: il doit disparaître de la liste sans modifier l'inventaire.

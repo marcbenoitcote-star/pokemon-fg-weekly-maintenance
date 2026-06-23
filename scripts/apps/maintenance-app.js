@@ -12,7 +12,8 @@ import {
   POKEMON_HARVEST_OPTIONS,
   PR_MAINTENANCE_SKILL_KEYS,
   SETTINGS,
-  TEMPLATES
+  TEMPLATES,
+  WEAPON_CRAFTING_CATEGORIES
 } from "../data/constants.js";
 import {
   calculatePR,
@@ -21,6 +22,7 @@ import {
   getRankLabel,
   getSkillOptions,
   getSkillRank,
+  getTrainerLevel,
   toPRQ,
   getWorkRateForRank
 } from "../services/pr-service.js";
@@ -75,6 +77,7 @@ export class PfgMaintenanceApp extends Application {
       prSkillKey: "generalEd",
       prBonuses: createEmptyPrBonuses(),
       calendar: { ...DEFAULT_WEEK_DATA },
+      startWeaponCrafting: Boolean(options.startWeaponCrafting),
       selectedActivity: ACTIVITY_KEYS.work,
       work: {
         description: "",
@@ -103,6 +106,7 @@ export class PfgMaintenanceApp extends Application {
         quantity: 1,
         moneyMode: "total",
         moneyValue: 0,
+        weapon: createDefaultWeaponCraftingState(),
         ingredients: []
       },
       activities: [],
@@ -110,7 +114,11 @@ export class PfgMaintenanceApp extends Application {
       finalized: false
     };
 
-    if (this.state.actorId) this.state.step = "pr";
+    if (this.state.startWeaponCrafting) {
+      this.state.selectedActivity = ACTIVITY_KEYS.crafting;
+      this.state.crafting.type = "weapon";
+    }
+    if (this.state.actorId) this.state.step = this.state.startWeaponCrafting ? "crafting" : "pr";
   }
 
   get actor() {
@@ -238,11 +246,11 @@ export class PfgMaintenanceApp extends Application {
       this.render(false);
     });
 
-    html.on("input", "input[name='weekName'], input[name='rpDate'], input[name='eventName'], textarea[name='eventDescription'], input[name='workDescription'], input[name='harvestPokemonName'], input[name='harvestSecondPokemonName']", (event) => {
+    html.on("input", "input[name='weekName'], input[name='rpDate'], input[name='eventName'], textarea[name='eventDescription'], input[name='workDescription'], input[name='harvestPokemonName'], input[name='harvestSecondPokemonName'], input[name='craftWeaponName']", (event) => {
       this.updateFieldState(event.currentTarget);
     });
 
-    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], input[name='bonusPR'], input[name='bonusPRCrafting'], input[name='bonusPRHarvest'], input[name='bonusPRWork'], input[name='bonusPRGardening'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], input[name='harvestCount'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], input[name^='craftIngredientQuantity:']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], input[name='bonusPR'], input[name='bonusPRCrafting'], input[name='bonusPRHarvest'], input[name='bonusPRWork'], input[name='bonusPRGardening'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], input[name='harvestCount'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], select[name='craftWeaponCategory'], select[name='craftWeaponBase'], select[name='craftWeaponTier1Move'], select[name='craftWeaponTier2Move'], input[name^='craftIngredientQuantity:']", (event) => {
       this.updateFieldState(event.currentTarget);
       this.render(false);
     });
@@ -444,6 +452,12 @@ export class PfgMaintenanceApp extends Application {
     if (data.has("craftQuantity")) this.state.crafting.quantity = readPositiveCount(data.get("craftQuantity"), this.state.crafting.quantity);
     if (data.has("craftMoneyMode")) this.state.crafting.moneyMode = normalizeMoneyMode(data.get("craftMoneyMode"), this.state.crafting.moneyMode);
     if (data.has("craftMoneyValue")) this.state.crafting.moneyValue = readMoneyValue(data.get("craftMoneyValue"), this.state.crafting.moneyValue);
+    const weaponState = this.ensureWeaponCraftingState();
+    if (data.has("craftWeaponName")) weaponState.name = stringValue(data.get("craftWeaponName"));
+    if (data.has("craftWeaponCategory")) weaponState.categoryKey = normalizeWeaponCategoryKey(data.get("craftWeaponCategory"), weaponState.categoryKey);
+    if (data.has("craftWeaponBase")) weaponState.baseKey = stringValue(data.get("craftWeaponBase")) || weaponState.baseKey;
+    if (data.has("craftWeaponTier1Move")) weaponState.tier1MoveKey = stringValue(data.get("craftWeaponTier1Move")) || weaponState.tier1MoveKey;
+    if (data.has("craftWeaponTier2Move")) weaponState.tier2MoveKey = stringValue(data.get("craftWeaponTier2Move")) || weaponState.tier2MoveKey;
     for (const [key, value] of data.entries()) {
       if (String(key).startsWith("craftIngredientQuantity:")) {
         this.updateCraftIngredientQuantity(String(key).split(":").slice(1).join(":"), value);
@@ -483,6 +497,12 @@ export class PfgMaintenanceApp extends Application {
     if (name === "craftQuantity") this.state.crafting.quantity = readPositiveCount(field.value, this.state.crafting.quantity);
     if (name === "craftMoneyMode") this.state.crafting.moneyMode = normalizeMoneyMode(field.value, this.state.crafting.moneyMode);
     if (name === "craftMoneyValue") this.state.crafting.moneyValue = readMoneyValue(field.value, this.state.crafting.moneyValue);
+    const weaponState = this.ensureWeaponCraftingState();
+    if (name === "craftWeaponName") weaponState.name = stringValue(field.value);
+    if (name === "craftWeaponCategory") weaponState.categoryKey = normalizeWeaponCategoryKey(field.value, weaponState.categoryKey);
+    if (name === "craftWeaponBase") weaponState.baseKey = stringValue(field.value) || weaponState.baseKey;
+    if (name === "craftWeaponTier1Move") weaponState.tier1MoveKey = stringValue(field.value) || weaponState.tier1MoveKey;
+    if (name === "craftWeaponTier2Move") weaponState.tier2MoveKey = stringValue(field.value) || weaponState.tier2MoveKey;
     if (String(name).startsWith("craftIngredientQuantity:")) {
       this.updateCraftIngredientQuantity(String(name).split(":").slice(1).join(":"), field.value);
     }
@@ -620,10 +640,12 @@ export class PfgMaintenanceApp extends Application {
     const craftTypeKey = normalizeCraftType(lockedActivity?.craftType ?? this.state.crafting.type);
     this.state.crafting.type = craftTypeKey;
     const craftType = getCraftType(craftTypeKey);
-    const quantity = lockedActivity?.quantity ?? Math.max(1, this.state.crafting.quantity);
-    const moneyMode = normalizeMoneyMode(lockedActivity?.moneyMode ?? this.state.crafting.moneyMode);
-    const moneyValue = lockedActivity?.moneyValue ?? Math.max(0, Number(this.state.crafting.moneyValue) || 0);
-    const moneyCost = lockedActivity?.moneyCost ?? calculateCraftMoneyCost(moneyMode, moneyValue, quantity);
+    const isWeaponCraft = craftTypeKey === "weapon";
+    const weapon = isWeaponCraft ? this.getWeaponCraftingData(actor, lockedActivity?.weapon) : null;
+    const quantity = lockedActivity?.quantity ?? (isWeaponCraft ? 1 : Math.max(1, this.state.crafting.quantity));
+    const moneyMode = isWeaponCraft ? "total" : normalizeMoneyMode(lockedActivity?.moneyMode ?? this.state.crafting.moneyMode);
+    const moneyValue = lockedActivity?.moneyValue ?? (isWeaponCraft ? (weapon?.moneyCost ?? 0) : Math.max(0, Number(this.state.crafting.moneyValue) || 0));
+    const moneyCost = lockedActivity?.moneyCost ?? (isWeaponCraft ? (weapon?.moneyCost ?? 0) : calculateCraftMoneyCost(moneyMode, moneyValue, quantity));
     const costPRQ = lockedActivity?.costPRQ ?? quantity * (craftType?.costPRQ ?? ACTIVITY_COSTS_PRQ.normalCraft);
     const ingredients = (lockedActivity?.ingredients ?? this.state.crafting.ingredients).map((ingredient) => {
       const actorItem = actor ? actor.items?.get?.(ingredient.itemId) : null;
@@ -637,8 +659,9 @@ export class PfgMaintenanceApp extends Application {
       };
     });
     const requirementErrors = lockedActivity ? [] : getCraftRequirementErrors(actor, {
-      itemUuid: this.state.crafting.itemUuid,
-      itemName: this.state.crafting.itemName,
+      itemUuid: isWeaponCraft ? "" : this.state.crafting.itemUuid,
+      itemName: isWeaponCraft ? weapon?.itemName : this.state.crafting.itemName,
+      generatedItem: weapon?.itemSource ?? null,
       craftType,
       quantity,
       costPRQ,
@@ -649,11 +672,12 @@ export class PfgMaintenanceApp extends Application {
 
     return {
       ...this.state.crafting,
-      itemUuid: lockedActivity?.itemUuid ?? this.state.crafting.itemUuid,
-      itemName: lockedActivity?.itemName ?? this.state.crafting.itemName,
-      itemType: lockedActivity?.itemType ?? this.state.crafting.itemType,
+      itemUuid: lockedActivity?.itemUuid ?? (isWeaponCraft ? "" : this.state.crafting.itemUuid),
+      itemName: lockedActivity?.itemName ?? (isWeaponCraft ? weapon?.itemName ?? "" : this.state.crafting.itemName),
+      itemType: lockedActivity?.itemType ?? (isWeaponCraft ? "item" : this.state.crafting.itemType),
       type: craftTypeKey,
       quantity,
+      quantityLocked: Boolean(isWeaponCraft || lockedActivity),
       moneyMode,
       moneyModeUnit: moneyMode === "unit",
       moneyValue,
@@ -673,6 +697,8 @@ export class PfgMaintenanceApp extends Application {
       })),
       selectedType: craftType,
       selectedTypeLabel: craftType?.label ?? craftTypeKey,
+      isWeaponCraft,
+      weapon,
       ingredients,
       hasIngredients: ingredients.length > 0,
       requirementErrors,
@@ -684,6 +710,103 @@ export class PfgMaintenanceApp extends Application {
 
   getPlannedActivities() {
     return this.state.activities ?? [];
+  }
+
+  ensureWeaponCraftingState() {
+    if (!this.state.crafting.weapon) this.state.crafting.weapon = createDefaultWeaponCraftingState();
+    return this.state.crafting.weapon;
+  }
+
+  getWeaponCraftingData(actor, lockedWeapon = null) {
+    if (lockedWeapon) return lockedWeapon;
+
+    const state = this.ensureWeaponCraftingState();
+    const category = getWeaponCategory(state.categoryKey);
+    state.categoryKey = category.key;
+    const base = getWeaponBase(category, state.baseKey);
+    state.baseKey = base.key;
+    const tier1Options = getWeaponMoveOptions(category, "tier1", base);
+    const tier2Options = getWeaponMoveOptions(category, "tier2", base);
+    const tier1Move = getWeaponMoveFromOptions(tier1Options, state.tier1MoveKey);
+    const tier2Move = getWeaponMoveFromOptions(tier2Options, state.tier2MoveKey);
+    state.tier1MoveKey = tier1Move?.key ?? "";
+    state.tier2MoveKey = tier2Move?.key ?? "";
+
+    const selectedMoves = [tier1Move, tier2Move].filter(Boolean);
+    const baseCost = Number(base.cost) || 0;
+    const surcharge = selectedMoves.reduce((total, move) => total + (Number(move.musicalSurcharge) || 0), 0);
+    const moneyCost = baseCost + surcharge;
+    const level = actor ? getTrainerLevel(actor, { manualLevel: this.state.manualLevel }).value : 1;
+    const damageBonus = Math.floor(Math.max(1, level) / 10) * 5;
+    const isShield = category.key === "shield";
+    const itemName = state.name || buildWeaponItemName(category, base, selectedMoves);
+    const rules = buildWeaponRules(category, base, selectedMoves, damageBonus);
+    const summaryLines = buildWeaponSummaryLines(category, base, selectedMoves, damageBonus, baseCost, surcharge);
+    const description = buildWeaponDescription(category, base, selectedMoves, damageBonus, baseCost, surcharge);
+    const itemSource = buildWeaponItemSource({
+      itemName,
+      category,
+      base,
+      selectedMoves,
+      baseCost,
+      surcharge,
+      moneyCost,
+      damageBonus,
+      description,
+      rules
+    });
+
+    return {
+      name: state.name,
+      itemName,
+      categoryKey: category.key,
+      categoryLabel: category.label,
+      baseKey: base.key,
+      baseLabel: base.label,
+      baseCost,
+      baseCostLabel: formatMoney(baseCost),
+      surcharge,
+      surchargeLabel: formatMoney(surcharge),
+      moneyCost,
+      moneyCostLabel: formatMoney(moneyCost),
+      damageBonus,
+      isShield,
+      evasionBonus: base.evasionBonus ?? 0,
+      actionDescription: base.actionDescription ?? "",
+      effectUuid: base.effectUuid ?? "",
+      rangeLabel: base.rangeLabel ?? "",
+      tier1MoveKey: tier1Move?.key ?? "",
+      tier2MoveKey: tier2Move?.key ?? "",
+      tier1MoveLabel: tier1Move?.label ?? "",
+      tier2MoveLabel: tier2Move?.label ?? "",
+      moveLabels: selectedMoves.map((move) => move.label).join(", "),
+      selectedMoves,
+      categoryOptions: WEAPON_CRAFTING_CATEGORIES.map((entry) => ({
+        key: entry.key,
+        label: entry.label,
+        selected: entry.key === category.key
+      })),
+      baseOptions: category.bases.map((entry) => ({
+        ...entry,
+        selected: entry.key === base.key,
+        costLabel: formatMoney(entry.cost)
+      })),
+      tier1Options: tier1Options.map((move) => ({
+        ...move,
+        selected: move.key === tier1Move?.key,
+        surchargeLabel: move.musicalSurcharge ? ` + ${formatMoney(move.musicalSurcharge)}` : ""
+      })),
+      tier2Options: tier2Options.map((move) => ({
+        ...move,
+        selected: move.key === tier2Move?.key,
+        surchargeLabel: move.musicalSurcharge ? ` + ${formatMoney(move.musicalSurcharge)}` : ""
+      })),
+      summaryLines,
+      hasSummaryLines: summaryLines.length > 0,
+      description,
+      rules,
+      itemSource
+    };
   }
 
   ensurePrBonusState() {
@@ -1054,6 +1177,10 @@ export class PfgMaintenanceApp extends Application {
     }
 
     if (target === "craftResult") {
+      if (this.state.crafting.type === "weapon") {
+        ui.notifications.info("La Fabrication d'arme génère l'objet final automatiquement.");
+        return;
+      }
       this.state.crafting.itemUuid = item.uuid ?? dropData.uuid ?? dropData.documentUuid ?? "";
       this.state.crafting.itemName = item.name ?? "Objet fabriqué";
       this.state.crafting.itemType = item.type ?? "";
@@ -1137,14 +1264,14 @@ export class PfgMaintenanceApp extends Application {
       ui.notifications.warn(crafting.requirementErrors?.[0] ?? "Fabrication impossible avec les données actuelles.");
       return;
     }
-    if (!globalThis.fromUuid) {
+    if (!crafting.isWeaponCraft && !globalThis.fromUuid) {
       ui.notifications.warn("Impossible de résoudre l'objet final: fromUuid indisponible.");
       return;
     }
 
-    const finalItem = await globalThis.fromUuid(crafting.itemUuid);
+    const finalItem = crafting.isWeaponCraft ? crafting.weapon?.itemSource : await globalThis.fromUuid(crafting.itemUuid);
     if (!finalItem) {
-      ui.notifications.warn("Objet final introuvable. Redépose l'objet à fabriquer.");
+      ui.notifications.warn(crafting.isWeaponCraft ? "Arme impossible à générer avec les données actuelles." : "Objet final introuvable. Redépose l'objet à fabriquer.");
       return;
     }
 
@@ -1159,6 +1286,7 @@ export class PfgMaintenanceApp extends Application {
     const errors = getCraftRequirementErrors(actor, {
       itemUuid: refreshed.itemUuid,
       itemName: refreshed.itemName,
+      generatedItem: refreshed.weapon?.itemSource ?? null,
       craftType: refreshed.selectedType,
       quantity: refreshed.quantity,
       costPRQ: refreshed.costPRQ,
@@ -1208,6 +1336,8 @@ export class PfgMaintenanceApp extends Application {
       itemType: refreshed.itemType,
       craftType: refreshed.type,
       craftTypeLabel: refreshed.selectedTypeLabel,
+      isWeaponCraft: refreshed.isWeaponCraft,
+      weapon: refreshed.weapon,
       quantity: refreshed.quantity,
       costPRQ: refreshed.costPRQ,
       costLabel: refreshed.costLabel,
@@ -1480,16 +1610,21 @@ export class PfgMaintenanceApp extends Application {
       quantity: 1,
       moneyMode: "total",
       moneyValue: 0,
+      weapon: createDefaultWeaponCraftingState(),
       ingredients: []
     };
   }
 
   selectTrainer(actor) {
     this.state.actorId = getActorKey(actor);
-    this.state.step = "pr";
+    this.state.step = this.state.startWeaponCrafting ? "crafting" : "pr";
     const bestSkill = getBestSkill(actor, "work");
     this.state.prSkillKey = normalizePrSkill(bestSkill?.key, "generalEd");
     this.resetActivityState(this.state.prSkillKey);
+    if (this.state.startWeaponCrafting) {
+      this.state.selectedActivity = ACTIVITY_KEYS.crafting;
+      this.state.crafting.type = "weapon";
+    }
     this.debugSelection("select-trainer", this.state.actorId, actor);
     this.render(false);
   }
@@ -1523,6 +1658,211 @@ function getVisibleSteps(state) {
     actionStep,
     STEPS[4]
   ];
+}
+
+function createDefaultWeaponCraftingState() {
+  const category = WEAPON_CRAFTING_CATEGORIES[0];
+  return {
+    name: "",
+    categoryKey: category?.key ?? "",
+    baseKey: category?.bases?.[0]?.key ?? "",
+    tier1MoveKey: category?.tier1?.[0]?.key ?? "",
+    tier2MoveKey: category?.tier2?.[0]?.key ?? ""
+  };
+}
+
+function normalizeWeaponCategoryKey(value, fallback = WEAPON_CRAFTING_CATEGORIES[0]?.key ?? "") {
+  const key = stringValue(value);
+  if (WEAPON_CRAFTING_CATEGORIES.some((category) => category.key === key)) return key;
+  if (WEAPON_CRAFTING_CATEGORIES.some((category) => category.key === fallback)) return fallback;
+  return WEAPON_CRAFTING_CATEGORIES[0]?.key ?? "";
+}
+
+function getWeaponCategory(key) {
+  return WEAPON_CRAFTING_CATEGORIES.find((category) => category.key === key) ?? WEAPON_CRAFTING_CATEGORIES[0];
+}
+
+function getWeaponBase(category, key) {
+  return category?.bases?.find((base) => base.key === key) ?? category?.bases?.[0] ?? {};
+}
+
+function getWeaponMoveOptions(category, tier, base) {
+  return (category?.[tier] ?? []).filter((move) => {
+    if (move.twoHandedOnly && base.hands !== "two") return false;
+    if (move.heavyOnly && base.shield !== "heavy") return false;
+    return true;
+  });
+}
+
+function getWeaponMoveFromOptions(options, key) {
+  return options.find((move) => move.key === key) ?? options[0] ?? null;
+}
+
+function buildWeaponItemName(category, base, moves) {
+  const musical = moves.some((move) => move.musicalSurcharge);
+  const prefix = musical ? "Musical " : "";
+  return `${prefix}${category.label} - ${base.label}`;
+}
+
+function buildWeaponSummaryLines(category, base, moves, damageBonus, baseCost, surcharge) {
+  const lines = [
+    `${category.label} - ${base.label}`,
+    `Coût base: ${formatMoney(baseCost)}`,
+    `Moves: ${moves.map((move) => move.label).join(", ")}`
+  ];
+  if (surcharge > 0) lines.push(`Surtaxe Musical Weapon: ${formatMoney(surcharge)}`);
+  if (category.key === "shield") {
+    lines.push(`Bonus évasion passif: +${base.evasionBonus ?? 0}`);
+    if (base.actionDescription) lines.push(base.actionDescription);
+  } else {
+    lines.push(base.hands === "two" ? "Bonus arme à deux mains: +1 Accuracy et +1 DB." : "Bonus arme à une main: +1 DB.");
+    if (base.accuracyPenalty) lines.push(`Portée: ${base.rangeLabel}; ${base.accuracyPenalty} Accuracy.`);
+    if (damageBonus > 0) lines.push(`Bonus dégâts par niveau: +${damageBonus}.`);
+  }
+  return lines;
+}
+
+function buildWeaponDescription(category, base, moves, damageBonus, baseCost, surcharge) {
+  const summary = buildWeaponSummaryLines(category, base, moves, damageBonus, baseCost, surcharge)
+    .map((line) => `<li>${escapeHtml(line)}</li>`)
+    .join("");
+  const moveList = moves.map((move) => `<li>${escapeHtml(move.label)} (${move.uuids.map((uuid) => escapeHtml(uuid)).join(", ")})</li>`).join("");
+  const effect = base.effectUuid ? `<p><strong>Effet lié:</strong> ${escapeHtml(base.effectUuid)}</p>` : "";
+  return [
+    `<p><strong>Fabrication d'arme Pokémon FG</strong></p>`,
+    `<ul>${summary}</ul>`,
+    `<p><strong>Moves accordés:</strong></p>`,
+    `<ul>${moveList}</ul>`,
+    effect
+  ].join("");
+}
+
+function buildWeaponRules(category, base, moves, damageBonus) {
+  const rules = moves.flatMap((move) => move.uuids.map((uuid) => ({
+    key: "GrantItem",
+    uuid,
+    label: move.label
+  })));
+
+  if (category.key === "shield") {
+    rules.push({
+      key: "FlatModifier",
+      selector: "evasion",
+      value: base.evasionBonus ?? 0,
+      label: `${base.label}: Evasion`
+    });
+    if (base.effectUuid) {
+      rules.push({
+        key: "GrantItem",
+        uuid: base.effectUuid,
+        label: `${base.label}: effet d'action standard`
+      });
+    }
+    return rules;
+  }
+
+  rules.push(
+    {
+      key: "FlatModifier",
+      selector: "struggle-db",
+      value: 1,
+      label: `${base.label}: +1 DB Struggle`
+    },
+    {
+      key: "FlatModifier",
+      selector: "move-weapon-db",
+      value: 1,
+      label: `${base.label}: +1 DB Move Weapon`
+    },
+    {
+      key: "FlatModifier",
+      selector: "weapon-db",
+      value: 1,
+      label: `${base.label}: +1 DB`
+    }
+  );
+  if (base.hands === "two") {
+    rules.push(
+      {
+        key: "FlatModifier",
+        selector: "move-weapon-accuracy",
+        value: 1,
+        label: `${base.label}: +1 Accuracy Move Weapon`
+      },
+      {
+        key: "FlatModifier",
+        selector: "weapon-accuracy",
+        value: 1,
+        label: `${base.label}: +1 Accuracy`
+      }
+    );
+  }
+  if (base.accuracyPenalty) {
+    rules.push({
+      key: "FlatModifier",
+      selector: "weapon-accuracy",
+      value: base.accuracyPenalty,
+      label: `${base.label}: portée longue`
+    });
+  }
+  if (damageBonus > 0) {
+    rules.push(
+      {
+        key: "FlatModifier",
+        selector: "struggle-damage",
+        value: damageBonus,
+        label: "Bonus dégâts par niveau"
+      },
+      {
+        key: "FlatModifier",
+        selector: "move-weapon-damage",
+        value: damageBonus,
+        label: "Bonus dégâts par niveau"
+      },
+      {
+        key: "FlatModifier",
+        selector: "weapon-damage",
+        value: damageBonus,
+        label: "Bonus dégâts par niveau"
+      }
+    );
+  }
+  return rules;
+}
+
+function buildWeaponItemSource(data) {
+  return {
+    name: data.itemName,
+    type: "item",
+    system: {
+      quantity: 1,
+      price: data.moneyCost,
+      cost: data.moneyCost,
+      description: {
+        value: data.description
+      },
+      rules: data.rules
+    },
+    flags: {
+      [MODULE_ID]: {
+        weaponCrafting: {
+          categoryKey: data.category.key,
+          categoryLabel: data.category.label,
+          baseKey: data.base.key,
+          baseLabel: data.base.label,
+          baseCost: data.baseCost,
+          surcharge: data.surcharge,
+          moneyCost: data.moneyCost,
+          damageBonus: data.damageBonus,
+          moves: data.selectedMoves.map((move) => ({
+            key: move.key,
+            label: move.label,
+            uuids: move.uuids
+          }))
+        }
+      }
+    }
+  };
 }
 
 function createEmptyPrBonuses() {
@@ -1657,7 +1997,7 @@ function getCraftRequirementErrors(actor, context) {
   const errors = [];
   if (!actor) errors.push("Choisis un Trainer avant de fabriquer.");
   if (!(actor?.isOwner || game.user?.isGM)) errors.push("Seul le propriétaire ou un MJ peut confirmer une fabrication.");
-  if (!context.itemUuid || !context.itemName) errors.push("Dépose l'objet final à fabriquer.");
+  if (!context.generatedItem && (!context.itemUuid || !context.itemName)) errors.push("Dépose l'objet final à fabriquer.");
   if (!context.craftType?.enabled) errors.push("Ce type de fabrication n'est pas encore disponible.");
   if (context.quantity < 1) errors.push("La quantité doit être au moins 1.");
   if (context.remainingBefore < context.costPRQ) {

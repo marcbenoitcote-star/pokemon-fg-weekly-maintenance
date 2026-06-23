@@ -272,17 +272,92 @@
         Journal de fabrication
       </button>
 
-      <div class="pfg-drop-zone {{#if crafting.itemName}}ready{{/if}}" data-drop-target="craftResult">
-        <i class="fas fa-box"></i>
-        <span>
-          <strong>Objet final à fabriquer</strong>
-          {{#if crafting.itemName}}
-            <small>{{crafting.itemName}}</small>
+      {{#if crafting.isWeaponCraft}}
+        <label>
+          Nom de l'arme
+          <input type="text" name="craftWeaponName" value="{{crafting.weapon.name}}" placeholder="{{crafting.weapon.itemName}}" {{#if crafting.locked}}disabled{{/if}}>
+        </label>
+
+        <div class="pfg-two-cols">
+          <label>
+            Famille d'arme
+            <select name="craftWeaponCategory" {{#if crafting.locked}}disabled{{/if}}>
+              {{#each crafting.weapon.categoryOptions}}
+                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+              {{/each}}
+            </select>
+          </label>
+          <label>
+            Base
+            <select name="craftWeaponBase" {{#if crafting.locked}}disabled{{/if}}>
+              {{#each crafting.weapon.baseOptions}}
+                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}} - {{costLabel}}</option>
+              {{/each}}
+            </select>
+          </label>
+        </div>
+
+        <div class="pfg-two-cols">
+          <label>
+            Tiers 1 Move
+            <select name="craftWeaponTier1Move" {{#if crafting.locked}}disabled{{/if}}>
+              {{#each crafting.weapon.tier1Options}}
+                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}{{surchargeLabel}}</option>
+              {{/each}}
+            </select>
+          </label>
+          <label>
+            Tiers 2 Move
+            <select name="craftWeaponTier2Move" {{#if crafting.locked}}disabled{{/if}}>
+              {{#each crafting.weapon.tier2Options}}
+                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}{{surchargeLabel}}</option>
+              {{/each}}
+            </select>
+          </label>
+        </div>
+
+        <dl class="pfg-dl">
+          <div>
+            <dt>Objet généré</dt>
+            <dd>{{crafting.weapon.itemName}}</dd>
+          </div>
+          <div>
+            <dt>Prix base</dt>
+            <dd>{{crafting.weapon.baseCostLabel}}</dd>
+          </div>
+          <div>
+            <dt>Surtaxe</dt>
+            <dd>{{crafting.weapon.surchargeLabel}}</dd>
+          </div>
+          <div>
+            <dt>Moves</dt>
+            <dd>{{crafting.weapon.moveLabels}}</dd>
+          </div>
+          {{#if crafting.weapon.isShield}}
+            <div>
+              <dt>Évasion</dt>
+              <dd>+{{crafting.weapon.evasionBonus}}</dd>
+            </div>
           {{else}}
-            <small>Glisser l'objet final depuis un compendium ou la sidebar Items.</small>
+            <div>
+              <dt>Bonus dégâts</dt>
+              <dd>+{{crafting.weapon.damageBonus}}</dd>
+            </div>
           {{/if}}
-        </span>
-      </div>
+        </dl>
+      {{else}}
+        <div class="pfg-drop-zone {{#if crafting.itemName}}ready{{/if}}" data-drop-target="craftResult">
+          <i class="fas fa-box"></i>
+          <span>
+            <strong>Objet final à fabriquer</strong>
+            {{#if crafting.itemName}}
+              <small>{{crafting.itemName}}</small>
+            {{else}}
+              <small>Glisser l'objet final depuis un compendium ou la sidebar Items.</small>
+            {{/if}}
+          </span>
+        </div>
+      {{/if}}
 
       <div class="pfg-two-cols">
         <label>
@@ -295,26 +370,28 @@
         </label>
         <label>
           Quantité
-          <input type="number" name="craftQuantity" min="1" step="1" value="{{crafting.quantity}}" {{#if crafting.locked}}disabled{{/if}}>
+          <input type="number" name="craftQuantity" min="1" step="1" value="{{crafting.quantity}}" {{#if crafting.quantityLocked}}disabled{{/if}}>
         </label>
       </div>
 
-      <div class="pfg-two-cols">
-        <label>
-          Coût Pokédollars
-          <input type="number" name="craftMoneyValue" min="0" step="1" value="{{crafting.moneyValue}}" {{#if crafting.locked}}disabled{{/if}}>
-        </label>
-        <div class="pfg-inline-options">
-          <label class="pfg-check">
-            <input type="radio" name="craftMoneyMode" value="total" {{#unless crafting.moneyModeUnit}}checked{{/unless}} {{#if crafting.locked}}disabled{{/if}}>
-            Coût total
+      {{#unless crafting.isWeaponCraft}}
+        <div class="pfg-two-cols">
+          <label>
+            Coût Pokédollars
+            <input type="number" name="craftMoneyValue" min="0" step="1" value="{{crafting.moneyValue}}" {{#if crafting.locked}}disabled{{/if}}>
           </label>
-          <label class="pfg-check">
-            <input type="radio" name="craftMoneyMode" value="unit" {{#if crafting.moneyModeUnit}}checked{{/if}} {{#if crafting.locked}}disabled{{/if}}>
-            Coût unitaire
-          </label>
+          <div class="pfg-inline-options">
+            <label class="pfg-check">
+              <input type="radio" name="craftMoneyMode" value="total" {{#unless crafting.moneyModeUnit}}checked{{/unless}} {{#if crafting.locked}}disabled{{/if}}>
+              Coût total
+            </label>
+            <label class="pfg-check">
+              <input type="radio" name="craftMoneyMode" value="unit" {{#if crafting.moneyModeUnit}}checked{{/if}} {{#if crafting.locked}}disabled{{/if}}>
+              Coût unitaire
+            </label>
+          </div>
         </div>
-      </div>
+      {{/unless}}
 
       <dl class="pfg-dl">
         <div>
@@ -330,6 +407,14 @@
           <dd>{{crafting.remainingAfterLabel}}</dd>
         </div>
       </dl>
+
+      {{#if crafting.isWeaponCraft}}
+        <ul class="pfg-rolls">
+          {{#each crafting.weapon.summaryLines}}
+            <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      {{/if}}
 
       <div class="pfg-drop-zone" data-drop-target="craftIngredient">
         <i class="fas fa-flask"></i>
@@ -652,6 +737,16 @@
               <dt>Type</dt>
               <dd>{{currentActivity.craftTypeLabel}}</dd>
             </div>
+            {{#if currentActivity.isWeaponCraft}}
+              <div>
+                <dt>Base</dt>
+                <dd>{{currentActivity.weapon.categoryLabel}} - {{currentActivity.weapon.baseLabel}}</dd>
+              </div>
+              <div>
+                <dt>Moves</dt>
+                <dd>{{currentActivity.weapon.moveLabels}}</dd>
+              </div>
+            {{/if}}
             <div>
               <dt>Coût PR</dt>
               <dd>{{currentActivity.costLabel}}</dd>
@@ -661,6 +756,13 @@
               <dd>{{currentActivity.moneyCostLabel}}</dd>
             </div>
           </dl>
+          {{#if currentActivity.isWeaponCraft}}
+            <ul class="pfg-rolls">
+              {{#each currentActivity.weapon.summaryLines}}
+                <li>{{this}}</li>
+              {{/each}}
+            </ul>
+          {{/if}}
           {{#if currentActivity.hasIngredients}}
             <p><strong>Ingrédients consommés:</strong></p>
             <ul class="pfg-rolls">
@@ -762,6 +864,13 @@
               {{#if isCrafting}}
                 <strong>#{{number}} {{title}}</strong> - {{summaryLine}} - {{costLabel}} - {{moneyCostLabel}}
                 <small>{{resultStatus}}</small>
+                {{#if isWeaponCraft}}
+                  <ol>
+                    {{#each weapon.summaryLines}}
+                      <li>{{this}}</li>
+                    {{/each}}
+                  </ol>
+                {{/if}}
               {{else}}
               {{#if isHarvest}}
                 <strong>#{{number}} {{title}}</strong> - {{summaryLine}} - {{costLabel}}
