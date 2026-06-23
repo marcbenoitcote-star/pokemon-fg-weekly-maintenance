@@ -125,7 +125,9 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Tester une arme `Reach`: elle doit avoir `Weapon`, `Two-Handed`, `Reach`, deux `FlatModifier` `large-melee` (`damage-base` +2, `attack-roll` -1) et un `GrantItem` vers `Compendium.ptu.capabilities.Item.o7NdOFXqtOAIFv6x`.
 - Tester une arme à deux mains sans `Reach`: elle doit avoir `damage-base` +1 et `attack-roll` -1 avec le prédicat `move:weapon`.
 - Tester une arme à une main: elle doit avoir `damage-base` +1 avec le prédicat `move:weapon`.
-- Vérifier qu'un Trainer de niveau 10+ reçoit aussi le `FlatModifier` de bonus dégâts par niveau sur `damage-roll`.
+- Vérifier qu'aucun bonus dégâts automatique par niveau ou skill n'est ajouté aux Rule Elements.
+- Vérifier que le champ `Effect` indique le skill de rang des Moves: `Combat` pour une arme normale, `Focus` pour une arme magique.
+- Vérifier que le coût affiché sur l'item d'arme dans l'inventaire correspond au coût de fabrication et n'est pas doublé.
 - Entrer un coût Pokédollars total, puis un coût unitaire, et vérifier le total calculé.
 - Déposer des ingrédients depuis l'inventaire du Trainer: ils doivent être seulement réservés avant confirmation.
 - Cliquer `X` sur un ingrédient réservé: il doit disparaître de la liste sans modifier l'inventaire.

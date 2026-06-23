@@ -23,7 +23,6 @@ import {
   getRankLabel,
   getSkillOptions,
   getSkillRank,
-  getTrainerLevel,
   toPRQ,
   getWorkRateForRank
 } from "../services/pr-service.js";
@@ -737,15 +736,14 @@ export class PfgMaintenanceApp extends Application {
     const baseCost = Number(base.cost) || 0;
     const surcharge = selectedMoves.reduce((total, move) => total + (Number(move.musicalSurcharge) || 0), 0);
     const moneyCost = baseCost + surcharge;
-    const level = actor ? getTrainerLevel(actor, { manualLevel: this.state.manualLevel }).value : 1;
-    const damageBonus = Math.floor(Math.max(1, level) / 10) * 5;
     const isShield = category.key === "shield";
     const itemName = state.name || buildWeaponItemName(category, base, selectedMoves);
-    const rules = buildWeaponRules(category, base, selectedMoves, damageBonus);
-    const summaryLines = buildWeaponSummaryLines(category, base, selectedMoves, damageBonus, baseCost, surcharge);
+    const rules = buildWeaponRules(category, base, selectedMoves);
+    const summaryLines = buildWeaponSummaryLines(category, base, selectedMoves, baseCost, surcharge);
     const keywords = buildWeaponKeywords(category, base);
-    const effectText = buildWeaponEffectText(category, base, selectedMoves, damageBonus);
-    const description = buildWeaponDescription(category, base, selectedMoves, damageBonus, baseCost, surcharge, keywords, effectText);
+    const moveRankSkill = getWeaponMoveRankSkill(category);
+    const effectText = buildWeaponEffectText(category, base, selectedMoves, moveRankSkill);
+    const description = buildWeaponDescription(category, base, selectedMoves, baseCost, surcharge, keywords, effectText);
     const itemSource = buildWeaponItemSource({
       itemName,
       category,
@@ -754,7 +752,6 @@ export class PfgMaintenanceApp extends Application {
       baseCost,
       surcharge,
       moneyCost,
-      damageBonus,
       keywords,
       effectText,
       description,
@@ -774,7 +771,7 @@ export class PfgMaintenanceApp extends Application {
       surchargeLabel: formatMoney(surcharge),
       moneyCost,
       moneyCostLabel: formatMoney(moneyCost),
-      damageBonus,
+      moveRankSkill,
       isShield,
       evasionBonus: base.evasionBonus ?? 0,
       actionDescription: base.actionDescription ?? "",
@@ -1712,11 +1709,13 @@ function buildWeaponItemName(category, base, moves) {
   return `${prefix}${category.label} - ${base.label}`;
 }
 
-function buildWeaponSummaryLines(category, base, moves, damageBonus, baseCost, surcharge) {
+function buildWeaponSummaryLines(category, base, moves, baseCost, surcharge) {
+  const moveRankSkill = getWeaponMoveRankSkill(category);
   const lines = [
     `${category.label} - ${base.label}`,
     `Coût base: ${formatMoney(baseCost)}`,
-    `Moves: ${moves.map((move) => move.label).join(", ")}`
+    `Moves: ${moves.map((move) => move.label).join(", ")}`,
+    `Rang des Moves: ${moveRankSkill}`
   ];
   if (surcharge > 0) lines.push(`Surtaxe Musical Weapon: ${formatMoney(surcharge)}`);
   if (category.key === "shield") {
@@ -1729,13 +1728,12 @@ function buildWeaponSummaryLines(category, base, moves, damageBonus, baseCost, s
       lines.push(base.hands === "two" ? "Bonus arme à deux mains: +1 Accuracy et +1 DB." : "Bonus arme à une main: +1 DB.");
     }
     if (base.accuracyPenalty) lines.push(`Portée: ${base.rangeLabel}; ${base.accuracyPenalty} Accuracy.`);
-    if (damageBonus > 0) lines.push(`Bonus dégâts par niveau: +${damageBonus}.`);
   }
   return lines;
 }
 
-function buildWeaponDescription(category, base, moves, damageBonus, baseCost, surcharge, keywords, effectText) {
-  const summary = buildWeaponSummaryLines(category, base, moves, damageBonus, baseCost, surcharge)
+function buildWeaponDescription(category, base, moves, baseCost, surcharge, keywords, effectText) {
+  const summary = buildWeaponSummaryLines(category, base, moves, baseCost, surcharge)
     .map((line) => `<li>${escapeHtml(line)}</li>`)
     .join("");
   const moveList = moves.map((move) => `<li>${escapeHtml(move.label)} (${move.uuids.map((uuid) => escapeHtml(uuid)).join(", ")})</li>`).join("");
@@ -1773,7 +1771,11 @@ function buildWeaponKeywords(category, base) {
   return [...new Set(keywords)];
 }
 
-function buildWeaponEffectText(category, base, moves, damageBonus) {
+function getWeaponMoveRankSkill(category) {
+  return category.key.includes("magic") ? "Focus" : "Combat";
+}
+
+function buildWeaponEffectText(category, base, moves, moveRankSkill) {
   const lines = [];
   const moveRefs = moves.map((move, index) => {
     const tier = index === 0 ? "Adept Move" : "Expert Move";
@@ -1794,9 +1796,8 @@ function buildWeaponEffectText(category, base, moves, damageBonus) {
       lines.push(`${base.label}${range}: +1 Damage Base sur les moves weapon.`);
     }
     if (base.accuracyPenalty) lines.push(`${base.rangeLabel}: ${base.accuracyPenalty} Accuracy.`);
-    if (damageBonus > 0) lines.push(`Bonus dégâts par niveau: +${damageBonus} aux Damage Rolls des moves weapon.`);
-    lines.push(`Expert Combat: ajoute floor(@actor.system.skills.combat.value.total/5) au Damage Base des moves weapon.`);
   }
+  lines.push(`Le rang des Moves accordés dépend du skill ${moveRankSkill}: Combat pour une arme normale, Focus pour une arme magique.`);
 
   if (moveRefs.length > 0) lines.push(`Moves accordés: ${moveRefs.join("; ")}.`);
   return lines.join("\n");
@@ -1817,7 +1818,7 @@ function buildFlatModifierRule(label, selectors, value, predicate = []) {
   return rule;
 }
 
-function buildWeaponRules(category, base, moves, damageBonus) {
+function buildWeaponRules(category, base, moves) {
   const rules = moves.flatMap((move) => move.uuids.map((uuid) => ({
     key: "GrantItem",
     uuid,
@@ -1855,10 +1856,6 @@ function buildWeaponRules(category, base, moves, damageBonus) {
   if (base.accuracyPenalty) {
     rules.push(buildFlatModifierRule(`${base.key}-range`, "attack-roll", Math.abs(base.accuracyPenalty), ["move:weapon"]));
   }
-  if (damageBonus > 0) {
-    rules.push(buildFlatModifierRule("Bonus dégâts par niveau", "damage-roll", damageBonus, ["move:weapon"]));
-  }
-  rules.push(buildFlatModifierRule("Expert Combat", "damage-base", "floor(@actor.system.skills.combat.value.total/5)", ["move:weapon"]));
   return rules;
 }
 
@@ -1868,7 +1865,6 @@ function buildWeaponItemSource(data) {
     type: "item",
     system: {
       quantity: 1,
-      price: data.moneyCost,
       cost: data.moneyCost,
       category: "Equipment",
       keywords: data.keywords,
@@ -1890,7 +1886,6 @@ function buildWeaponItemSource(data) {
           baseCost: data.baseCost,
           surcharge: data.surcharge,
           moneyCost: data.moneyCost,
-          damageBonus: data.damageBonus,
           moves: data.selectedMoves.map((move) => ({
             key: move.key,
             label: move.label,
