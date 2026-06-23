@@ -35,7 +35,7 @@ Cette version livre l'étape 1 du cahier des charges:
 - Activité complète `Fabrication` avec journal de fabrication, drop de l'objet final, type, quantité, coût argent, ingrédients réservés et confirmation finale.
 - La Fabrication réserve les ingrédients au drop et ne retire argent/ingrédients qu'au moment de la confirmation.
 - Types Fabrication actifs: `Objet normal` à 1 PRQ par objet, `Arme` à 4 PRQ par arme et `Armure` à 4 PRQ par armure.
-- Constructeur `Arme`: base melee/ranged/magic/shield, coûts Pokédollars automatiques, 1 move Tiers 1, 1 move Tiers 2, restrictions two-handed/heavy, surtaxes Musical Weapon, règles GrantItem et description générée.
+- Constructeur `Arme`: base melee/ranged/magic/shield, coûts Pokédollars automatiques, 1 move Tiers 1, 1 move Tiers 2, restrictions two-handed/heavy, surtaxes Musical Weapon, règles PTR `FlatModifier`/`GrantItem`, champ `Effect`, `Keywords` et capacité `Reach`.
 - Macro dédiée `game.pfgMaintenance.openWeaponCrafting();` pour ouvrir directement la Fabrication d'arme.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
@@ -121,7 +121,11 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Tester une arme magique musicale: choisir un move avec surtaxe Musical Weapon et vérifier que le coût Pokédollars inclut la surtaxe.
 - Tester `Shield Weapon`: Bouclier léger doit donner +1 Evasion et l'effet `VEJwFmRF7al1iVH9`; Bouclier lourd doit donner +2 Evasion et l'effet `5OY0BP3rdka8VYbJ`.
 - Vérifier que les moves `Heavy Only` ne sont pas proposés pour un Bouclier léger.
-- Vérifier que l'item d'arme créé contient les moves accordés et la description des bonus.
+- Vérifier que l'item d'arme créé contient les moves accordés, les `Keywords`, le texte dans le champ `Effect` PTR et les règles dans l'onglet Rules.
+- Tester une arme `Reach`: elle doit avoir `Weapon`, `Two-Handed`, `Reach`, deux `FlatModifier` `large-melee` (`damage-base` +2, `attack-roll` -1) et un `GrantItem` vers `Compendium.ptu.capabilities.Item.o7NdOFXqtOAIFv6x`.
+- Tester une arme à deux mains sans `Reach`: elle doit avoir `damage-base` +1 et `attack-roll` -1 avec le prédicat `move:weapon`.
+- Tester une arme à une main: elle doit avoir `damage-base` +1 avec le prédicat `move:weapon`.
+- Vérifier qu'un Trainer de niveau 10+ reçoit aussi le `FlatModifier` de bonus dégâts par niveau sur `damage-roll`.
 - Entrer un coût Pokédollars total, puis un coût unitaire, et vérifier le total calculé.
 - Déposer des ingrédients depuis l'inventaire du Trainer: ils doivent être seulement réservés avant confirmation.
 - Cliquer `X` sur un ingrédient réservé: il doit disparaître de la liste sans modifier l'inventaire.
@@ -191,7 +195,6 @@ Chemins importants geres:
 
 ## Prochaines étapes
 
-1. Fabrication d'armes avec les règles détaillées.
-2. Validation automatique plus stricte des capabilities, niveaux et Friendship pour certaines Récoltes Pokémon.
-3. Agriculture / Jardinage avec Planting Stage, Growth Stage, Harvest Stage, Natural Specialty et Yield Rolls.
-4. Panneau MJ d'evenement hebdomadaire avec bonus mecaniques.
+1. Validation automatique plus stricte des capabilities, niveaux et Friendship pour certaines Récoltes Pokémon.
+2. Agriculture / Jardinage avec Planting Stage, Growth Stage, Harvest Stage, Natural Specialty et Yield Rolls.
+3. Panneau MJ d'evenement hebdomadaire avec bonus mecaniques.

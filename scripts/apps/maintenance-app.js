@@ -11,6 +11,7 @@ import {
   MODULE_TITLE,
   POKEMON_HARVEST_OPTIONS,
   PR_MAINTENANCE_SKILL_KEYS,
+  REACH_CAPABILITY_UUID,
   SETTINGS,
   TEMPLATES,
   WEAPON_CRAFTING_CATEGORIES
@@ -742,7 +743,9 @@ export class PfgMaintenanceApp extends Application {
     const itemName = state.name || buildWeaponItemName(category, base, selectedMoves);
     const rules = buildWeaponRules(category, base, selectedMoves, damageBonus);
     const summaryLines = buildWeaponSummaryLines(category, base, selectedMoves, damageBonus, baseCost, surcharge);
-    const description = buildWeaponDescription(category, base, selectedMoves, damageBonus, baseCost, surcharge);
+    const keywords = buildWeaponKeywords(category, base);
+    const effectText = buildWeaponEffectText(category, base, selectedMoves, damageBonus);
+    const description = buildWeaponDescription(category, base, selectedMoves, damageBonus, baseCost, surcharge, keywords, effectText);
     const itemSource = buildWeaponItemSource({
       itemName,
       category,
@@ -752,6 +755,8 @@ export class PfgMaintenanceApp extends Application {
       surcharge,
       moneyCost,
       damageBonus,
+      keywords,
+      effectText,
       description,
       rules
     });
@@ -803,6 +808,9 @@ export class PfgMaintenanceApp extends Application {
       })),
       summaryLines,
       hasSummaryLines: summaryLines.length > 0,
+      keywords,
+      keywordLabels: keywords.join(", "),
+      effectText,
       description,
       rules,
       itemSource
@@ -1715,26 +1723,98 @@ function buildWeaponSummaryLines(category, base, moves, damageBonus, baseCost, s
     lines.push(`Bonus évasion passif: +${base.evasionBonus ?? 0}`);
     if (base.actionDescription) lines.push(base.actionDescription);
   } else {
-    lines.push(base.hands === "two" ? "Bonus arme à deux mains: +1 Accuracy et +1 DB." : "Bonus arme à une main: +1 DB.");
+    if (base.reach) {
+      lines.push("Bonus arme Reach: +1 Accuracy, +2 DB et capacité Reach.");
+    } else {
+      lines.push(base.hands === "two" ? "Bonus arme à deux mains: +1 Accuracy et +1 DB." : "Bonus arme à une main: +1 DB.");
+    }
     if (base.accuracyPenalty) lines.push(`Portée: ${base.rangeLabel}; ${base.accuracyPenalty} Accuracy.`);
     if (damageBonus > 0) lines.push(`Bonus dégâts par niveau: +${damageBonus}.`);
   }
   return lines;
 }
 
-function buildWeaponDescription(category, base, moves, damageBonus, baseCost, surcharge) {
+function buildWeaponDescription(category, base, moves, damageBonus, baseCost, surcharge, keywords, effectText) {
   const summary = buildWeaponSummaryLines(category, base, moves, damageBonus, baseCost, surcharge)
     .map((line) => `<li>${escapeHtml(line)}</li>`)
     .join("");
   const moveList = moves.map((move) => `<li>${escapeHtml(move.label)} (${move.uuids.map((uuid) => escapeHtml(uuid)).join(", ")})</li>`).join("");
   const effect = base.effectUuid ? `<p><strong>Effet lié:</strong> ${escapeHtml(base.effectUuid)}</p>` : "";
+  const keywordText = keywords.length ? `<p><strong>Keywords:</strong> ${escapeHtml(keywords.join(", "))}</p>` : "";
+  const effectHtml = effectText
+    ? `<p><strong>Effect:</strong><br>${escapeHtml(effectText).replace(/\n/g, "<br>")}</p>`
+    : "";
   return [
     `<p><strong>Fabrication d'arme Pokémon FG</strong></p>`,
+    keywordText,
+    effectHtml,
     `<ul>${summary}</ul>`,
     `<p><strong>Moves accordés:</strong></p>`,
     `<ul>${moveList}</ul>`,
     effect
   ].join("");
+}
+
+function buildWeaponKeywords(category, base) {
+  const keywords = ["Weapon"];
+  if (category.key === "shield") {
+    keywords.push("Shield");
+    if (base.shield === "light") keywords.push("Light Shield");
+    if (base.shield === "heavy") keywords.push("Heavy Shield");
+    return [...new Set(keywords)];
+  }
+
+  if (category.key.includes("magic")) keywords.push("Magic");
+  if (category.key.toLowerCase().includes("melee")) keywords.push("Melee");
+  if (category.key.toLowerCase().includes("ranged")) keywords.push("Ranged");
+  if (base.hands === "one") keywords.push("One-Handed");
+  if (base.hands === "two") keywords.push("Two-Handed");
+  if (base.reach) keywords.push("Reach");
+  return [...new Set(keywords)];
+}
+
+function buildWeaponEffectText(category, base, moves, damageBonus) {
+  const lines = [];
+  const moveRefs = moves.map((move, index) => {
+    const tier = index === 0 ? "Adept Move" : "Expert Move";
+    return `${tier} ${formatMoveUuidReferences(move)}`;
+  });
+
+  if (category.key === "shield") {
+    lines.push(`${base.label}: bonus passif de +${base.evasionBonus ?? 0} Evasion.`);
+    if (base.actionDescription) lines.push(base.actionDescription);
+    if (base.effectUuid) lines.push(`Effet lié: @UUID[${base.effectUuid}].`);
+  } else {
+    const range = base.rangeLabel ? ` (${base.rangeLabel})` : "";
+    if (base.reach) {
+      lines.push(`${base.label}${range}: +2 Damage Base et +1 Accuracy sur les moves weapon; accorde la capacité @UUID[${REACH_CAPABILITY_UUID}]{Reach}.`);
+    } else if (base.hands === "two") {
+      lines.push(`${base.label}${range}: +1 Damage Base et +1 Accuracy sur les moves weapon.`);
+    } else {
+      lines.push(`${base.label}${range}: +1 Damage Base sur les moves weapon.`);
+    }
+    if (base.accuracyPenalty) lines.push(`${base.rangeLabel}: ${base.accuracyPenalty} Accuracy.`);
+    if (damageBonus > 0) lines.push(`Bonus dégâts par niveau: +${damageBonus} aux Damage Rolls des moves weapon.`);
+    lines.push(`Expert Combat: ajoute floor(@actor.system.skills.combat.value.total/5) au Damage Base des moves weapon.`);
+  }
+
+  if (moveRefs.length > 0) lines.push(`Moves accordés: ${moveRefs.join("; ")}.`);
+  return lines.join("\n");
+}
+
+function formatMoveUuidReferences(move) {
+  return move.uuids.map((uuid) => `@UUID[${uuid}]{${move.label}}`).join(", ");
+}
+
+function buildFlatModifierRule(label, selectors, value, predicate = []) {
+  const rule = {
+    key: "FlatModifier",
+    label,
+    selectors,
+    value
+  };
+  if (predicate.length > 0) rule.predicate = predicate;
+  return rule;
 }
 
 function buildWeaponRules(category, base, moves, damageBonus) {
@@ -1745,12 +1825,7 @@ function buildWeaponRules(category, base, moves, damageBonus) {
   })));
 
   if (category.key === "shield") {
-    rules.push({
-      key: "FlatModifier",
-      selector: "evasion",
-      value: base.evasionBonus ?? 0,
-      label: `${base.label}: Evasion`
-    });
+    rules.push(buildFlatModifierRule(`${base.label}: Evasion`, "evasion", base.evasionBonus ?? 0));
     if (base.effectUuid) {
       rules.push({
         key: "GrantItem",
@@ -1761,72 +1836,29 @@ function buildWeaponRules(category, base, moves, damageBonus) {
     return rules;
   }
 
-  rules.push(
-    {
-      key: "FlatModifier",
-      selector: "struggle-db",
-      value: 1,
-      label: `${base.label}: +1 DB Struggle`
-    },
-    {
-      key: "FlatModifier",
-      selector: "move-weapon-db",
-      value: 1,
-      label: `${base.label}: +1 DB Move Weapon`
-    },
-    {
-      key: "FlatModifier",
-      selector: "weapon-db",
-      value: 1,
-      label: `${base.label}: +1 DB`
-    }
-  );
-  if (base.hands === "two") {
+  if (base.reach) {
     rules.push(
+      buildFlatModifierRule("large-melee", "damage-base", 2, ["move:weapon"]),
+      buildFlatModifierRule("large-melee", "attack-roll", -1, ["move:weapon"]),
       {
-        key: "FlatModifier",
-        selector: "move-weapon-accuracy",
-        value: 1,
-        label: `${base.label}: +1 Accuracy Move Weapon`
-      },
-      {
-        key: "FlatModifier",
-        selector: "weapon-accuracy",
-        value: 1,
-        label: `${base.label}: +1 Accuracy`
+        key: "GrantItem",
+        uuid: REACH_CAPABILITY_UUID,
+        label: "Reach"
       }
     );
+  } else {
+    rules.push(buildFlatModifierRule(base.key, "damage-base", 1, ["move:weapon"]));
+    if (base.hands === "two") {
+      rules.push(buildFlatModifierRule(base.key, "attack-roll", -1, ["move:weapon"]));
+    }
   }
   if (base.accuracyPenalty) {
-    rules.push({
-      key: "FlatModifier",
-      selector: "weapon-accuracy",
-      value: base.accuracyPenalty,
-      label: `${base.label}: portée longue`
-    });
+    rules.push(buildFlatModifierRule(`${base.key}-range`, "attack-roll", Math.abs(base.accuracyPenalty), ["move:weapon"]));
   }
   if (damageBonus > 0) {
-    rules.push(
-      {
-        key: "FlatModifier",
-        selector: "struggle-damage",
-        value: damageBonus,
-        label: "Bonus dégâts par niveau"
-      },
-      {
-        key: "FlatModifier",
-        selector: "move-weapon-damage",
-        value: damageBonus,
-        label: "Bonus dégâts par niveau"
-      },
-      {
-        key: "FlatModifier",
-        selector: "weapon-damage",
-        value: damageBonus,
-        label: "Bonus dégâts par niveau"
-      }
-    );
+    rules.push(buildFlatModifierRule("Bonus dégâts par niveau", "damage-roll", damageBonus, ["move:weapon"]));
   }
+  rules.push(buildFlatModifierRule("Expert Combat", "damage-base", "floor(@actor.system.skills.combat.value.total/5)", ["move:weapon"]));
   return rules;
 }
 
@@ -1838,6 +1870,11 @@ function buildWeaponItemSource(data) {
       quantity: 1,
       price: data.moneyCost,
       cost: data.moneyCost,
+      category: "Equipment",
+      keywords: data.keywords,
+      effect: data.effectText,
+      snippet: data.effectText.split("\n")[0] ?? "",
+      referenceEffect: data.base.effectUuid ?? "",
       description: {
         value: data.description
       },

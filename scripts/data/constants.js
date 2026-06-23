@@ -294,6 +294,8 @@ export const POKEMON_HARVEST_OPTIONS = [
   }
 ];
 
+export const REACH_CAPABILITY_UUID = "Compendium.ptu.capabilities.Item.o7NdOFXqtOAIFv6x";
+
 export const WEAPON_CRAFTING_CATEGORIES = [
   {
     key: "melee",
@@ -301,7 +303,7 @@ export const WEAPON_CRAFTING_CATEGORIES = [
     bases: [
       { key: "oneHand", label: "Arme à une main", cost: 3500, hands: "one", rangeLabel: "Mêlée" },
       { key: "twoHand", label: "Arme à deux mains", cost: 3500, hands: "two", rangeLabel: "Mêlée" },
-      { key: "twoHandReach", label: "Arme à deux mains (Reach)", cost: 6000, hands: "two", rangeLabel: "Mêlée, Reach" }
+      { key: "twoHandReach", label: "Arme à deux mains (Reach)", cost: 6000, hands: "two", rangeLabel: "Mêlée, Reach", reach: true }
     ],
     tier1: [
       weaponMove("wounderingStrike", "Woundering Strike", "Compendium.ptu.moves.Item.9VRUW0ZlzwcKeTo4"),
@@ -351,7 +353,7 @@ export const WEAPON_CRAFTING_CATEGORIES = [
     bases: [
       { key: "oneHand", label: "Arme à une main", cost: 4000, hands: "one", rangeLabel: "Mêlée" },
       { key: "twoHand", label: "Arme à deux mains", cost: 5000, hands: "two", rangeLabel: "Mêlée" },
-      { key: "twoHandReach", label: "Arme à deux mains (Reach)", cost: 7000, hands: "two", rangeLabel: "Mêlée, Reach" }
+      { key: "twoHandReach", label: "Arme à deux mains (Reach)", cost: 7000, hands: "two", rangeLabel: "Mêlée, Reach", reach: true }
     ],
     tier1: [
       weaponMove("energyBlast", "Energy Blast", "Compendium.ptu.moves.Item.t9hZfq9V5oCsnnTw"),
