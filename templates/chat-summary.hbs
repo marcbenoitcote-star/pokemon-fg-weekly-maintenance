@@ -26,6 +26,18 @@
             {{/if}}
           </li>
         {{else}}
+        {{#if isGardening}}
+          <li>
+            {{title}} - {{summaryLine}}, coût {{costLabel}}, {{moneyCostLabel}}
+            {{#if hasHarvestResults}}
+              <ol>
+                {{#each harvestResults}}
+                  <li>{{plantName}} - {{resultLabel}} ({{total}}){{#if quantityRolled}} - {{quantityResultLabel}}{{/if}}</li>
+                {{/each}}
+              </ol>
+            {{/if}}
+          </li>
+        {{else}}
         {{#if isHarvest}}
           <li>
             {{title}} - {{summaryLine}}, coût {{costLabel}}
@@ -41,6 +53,7 @@
           <li>{{title}} - {{totalGain}}₽ gagnés, coût {{costLabel}}</li>
         {{/if}}
         {{/if}}
+        {{/if}}
       {{/each}}
     </ol>
     <h4>Modifications</h4>
@@ -48,6 +61,9 @@
       {{#each activities}}
         {{#if isCrafting}}
           <li>Fabrication: {{resultStatus}} Argent: -{{moneyCostLabel}}</li>
+        {{else}}
+        {{#if isGardening}}
+          <li>Agriculture: {{resultStatus}} Argent: -{{moneyCostLabel}}</li>
         {{else}}
         {{#if isHarvest}}
           <li>Récolte: {{resultStatus}}</li>
@@ -57,6 +73,7 @@
           {{else}}
             <li>Argent: +{{totalGain}}₽ non appliqué</li>
           {{/if}}
+        {{/if}}
         {{/if}}
         {{/if}}
       {{/each}}
@@ -86,6 +103,24 @@
         </ul>
       {{/if}}
       <p><strong>Résultat:</strong> {{activity.resultStatus}}</p>
+      <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+    {{else}}
+    {{#if activity.isGardening}}
+      <h3>Agriculture / Jardinage - {{actor.name}}</h3>
+      <p><strong>Plantations:</strong> {{activity.plantedCount}}</p>
+      <p><strong>Prêtes:</strong> {{activity.readyCount}}</p>
+      <p><strong>Récoltées:</strong> {{activity.harvestedCount}}</p>
+      <p><strong>Coût PR:</strong> {{activity.costLabel}}</p>
+      <p><strong>Coût Pokédollars:</strong> {{activity.moneyCostLabel}}</p>
+      {{#if activity.hasHarvestResults}}
+        <p><strong>Récoltes lancées:</strong></p>
+        <ol>
+          {{#each activity.harvestResults}}
+            <li>{{plantName}} - {{resultLabel}} ({{total}}), quantité {{#if quantityRolled}}{{quantityResultLabel}}{{else}}{{quantityFormula}} à lancer{{/if}}. {{freeReplantLabel}}</li>
+          {{/each}}
+        </ol>
+      {{/if}}
+      <p><strong>Statut:</strong> {{activity.resultStatus}}</p>
       <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
     {{else}}
     {{#if activity.isHarvest}}
@@ -124,6 +159,7 @@
       </ol>
       <p><strong>Total gagné:</strong> {{activity.totalGain}}₽</p>
       <p><strong>PR restants:</strong> {{remainingPRLabel}}</p>
+    {{/if}}
     {{/if}}
     {{/if}}
   {{/if}}

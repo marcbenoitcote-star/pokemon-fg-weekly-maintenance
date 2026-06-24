@@ -352,6 +352,80 @@
   margin: 0 0 0 20px;
 }
 
+.pfg-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pfg-segmented button.active {
+  border-color: #2f6f87;
+  background: rgba(47, 111, 135, 0.16);
+  font-weight: 700;
+}
+
+.pfg-garden-mods {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pfg-garden-mods small {
+  font-weight: 400;
+  opacity: 0.72;
+}
+
+.pfg-garden-slots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pfg-garden-slots.compact {
+  grid-template-columns: 1fr;
+}
+
+.pfg-garden-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.pfg-garden-slot.ready {
+  border-color: rgba(85, 122, 65, 0.62);
+  background: rgba(85, 122, 65, 0.11);
+}
+
+.pfg-garden-slot header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pfg-garden-slot header button {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.pfg-three-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pfg-garden-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+}
+
 .pfg-actions {
   display: flex;
   flex-wrap: wrap;
@@ -391,8 +465,12 @@
 @media (max-width: 720px) {
   .pfg-grid,
   .pfg-two-cols,
+  .pfg-three-cols,
   .pfg-activity-list,
   .pfg-harvest-list,
+  .pfg-garden-mods,
+  .pfg-garden-slots,
+  .pfg-garden-checks,
   .pfg-ingredient-row,
   .pfg-trainer-list,
   .pfg-pr-strip {

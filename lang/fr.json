@@ -6,11 +6,11 @@
   "PFG_MAINTENANCE.Settings.MinimumWorkRate.Name": "Taux minimum du Petit Travail",
   "PFG_MAINTENANCE.Settings.MinimumWorkRate.Hint": "Taux minimum en Pokedollars par point de d6, même pour Pathetic ou Untrained. Laisser 0 pour suivre la table par defaut.",
   "PFG_MAINTENANCE.Settings.MaxBonusGardenSlots.Name": "Emplacements bonus maximum",
-  "PFG_MAINTENANCE.Settings.MaxBonusGardenSlots.Hint": "Reserve pour l'etape Agriculture / Jardinage. Nombre d'emplacements bonus recommandes au-dessus des 6 emplacements de base.",
+  "PFG_MAINTENANCE.Settings.MaxBonusGardenSlots.Hint": "Nombre d'emplacements bonus autorises au-dessus des 6 emplacements de base pour Agriculture / Jardinage.",
   "PFG_MAINTENANCE.Settings.HarvestRollUsesSkillDice.Name": "Recolte avec des de de Skill",
-  "PFG_MAINTENANCE.Settings.HarvestRollUsesSkillDice.Hint": "Reserve pour l'etape Agriculture. Si actif, les jets de recolte utiliseront les des de Skill plutot que le rang numerique.",
+  "PFG_MAINTENANCE.Settings.HarvestRollUsesSkillDice.Hint": "Si actif, les jets de recolte Agriculture utilisent les des de Skill plutot que le rang numerique.",
   "PFG_MAINTENANCE.Settings.FreeReplantThreshold.Name": "Seuil de reprise gratuite",
-  "PFG_MAINTENANCE.Settings.FreeReplantThreshold.Hint": "Reserve pour l'etape Agriculture. Resultat minimum pour obtenir une reprise gratuite apres recolte.",
+  "PFG_MAINTENANCE.Settings.FreeReplantThreshold.Hint": "Resultat minimum pour obtenir une reprise gratuite apres une recolte Agriculture.",
   "PFG_MAINTENANCE.Settings.Debug.Name": "Logs de debug",
   "PFG_MAINTENANCE.Settings.Debug.Hint": "Affiche dans la console les chemins PTR manquants, lectures de donnees et operations appliquees."
 }

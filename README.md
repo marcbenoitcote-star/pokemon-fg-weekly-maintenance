@@ -36,10 +36,13 @@ Cette version livre l'étape 1 du cahier des charges:
 - La Fabrication réserve les ingrédients au drop et ne retire argent/ingrédients qu'au moment de la confirmation.
 - Types Fabrication actifs: `Objet normal` à 1 PRQ par objet, `Arme` à 4 PRQ par arme et `Armure` à 4 PRQ par armure.
 - Constructeur `Arme`: base melee/ranged/magic/shield, coûts Pokédollars automatiques, 1 move Tiers 1, 1 move Tiers 2, restrictions two-handed/heavy, surtaxes Musical Weapon, règles PTR `FlatModifier`/`GrantItem`, champ `Effect`, `Keywords` et capacité `Reach`.
+- Activité complète `Agriculture / Jardinage` avec Planting Stage, Growth Stage, Harvest Stage, emplacements bonus, modificateurs agricoles, Natural Specialty et Yield Rolls.
+- Modificateurs Agriculture actifs: Sprouter, Gardener, Expert Botanist, Mulch, Fertilizer et Terrain Soils avec limites, coûts PR et coûts Pokédollars.
+- Harvest Stage Agriculture: jet `1d6 + Skill + Soil + 2 + bonus`, option MJ dés de skill ou rang numérique, seuil configurable de reprise gratuite et bouton de quantité récoltée.
 - Macro dédiée `game.pfgMaintenance.openWeaponCrafting();` pour ouvrir directement la Fabrication d'arme.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
 
-L'étape Agriculture / Jardinage est visible comme emplacement de travail, mais pas encore active dans l'interface.
+Les quatre activités principales sont actives: Petit Travail, Récolte Pokémon, Fabrication et Agriculture / Jardinage.
 
 ## Installation locale
 
@@ -85,11 +88,12 @@ Flux MVP:
 1. Choisir un Trainer.
 2. Verifier le calcul des PR et choisir le skill PR voulu.
 3. Remplir la semaine ou l'evenement actif.
-4. Choisir `Petit Travail`, `Récolte Pokémon` ou `Fabrication`.
+4. Choisir `Petit Travail`, `Récolte Pokémon`, `Fabrication` ou `Agriculture / Jardinage`.
 5. Pour `Petit Travail`, saisir la description, le skill et le nombre de travaux, puis lancer les dés.
 6. Pour `Récolte Pokémon`, choisir la récolte, confirmer le Pokémon utilisé, puis confirmer le résultat.
 7. Pour `Fabrication`, déposer l'objet final, choisir le type, la quantité, le coût argent et les ingrédients réservés, puis confirmer.
-8. Poster le résumé, appliquer les gains si souhaité, commencer une nouvelle activité avec les PR restants, puis terminer l'entretien.
+8. Pour `Agriculture / Jardinage`, remplir les emplacements au Planting Stage, vérifier la croissance, sélectionner les récoltes prêtes et confirmer.
+9. Poster le résumé, appliquer les gains si souhaité, commencer une nouvelle activité avec les PR restants, puis terminer l'entretien.
 
 Macro directe pour la Fabrication d'arme:
 
@@ -141,7 +145,23 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Entrer un `Bonus PR uniquement Petit Travail`, lancer un Petit Travail, puis vérifier que ce bonus ne permet pas de financer une Fabrication.
 - Entrer un `Bonus PR uniquement Fabrication`, confirmer une Fabrication, puis vérifier que ce bonus ne permet pas de financer Petit Travail ou Récolte.
 - Entrer un `Bonus PR uniquement Récolte`, confirmer une Récolte Pokémon, puis vérifier que ce bonus ne permet pas de financer Petit Travail ou Fabrication.
-- Entrer un `Bonus PR uniquement Agriculture` et vérifier qu'il augmente les PR totaux sans débloquer les activités actuellement actives tant que l'Agriculture reste désactivée.
+- Vérifier que `Agriculture / Jardinage` est sélectionnable dans l'écran Activité.
+- Dans Planting Stage, remplir une plante `Berry` Tier 1 en laissant `Semaines restantes` vide: la durée de base doit être 1 semaine.
+- Tester `Apricorn`: la durée de base doit être 2 semaines, peu importe le Tier.
+- Entrer Soil Quality 6 et vérifier que la réduction de croissance est 3 semaines.
+- Ajouter un emplacement bonus, saisir une raison, puis vérifier que le maximum respecte le setting MJ `Emplacements bonus maximum`.
+- Tester `Sprouter`: 1 Sprouter sur toutes les plantations doit coûter `1/4 PR` et ajouter +2 Soil Quality aux plantes ciblées.
+- Tester `Gardener X`: X=1 ne doit pas permettre de cibler plus de 4 plantations.
+- Tester `Expert Botanist X`: X=1 ne doit pas permettre de cibler plus de 6 plantations.
+- Tester `Mulch X`: X=1 doit coûter `1/4 PR` et `200₽`, et ne pas permettre plus de 4 plantations ciblées.
+- Tester `Fertilizer X`: X=1 doit coûter `1/4 PR` et réduire d'une semaine jusqu'à 4 plantations ciblées.
+- Tester `Terrain Soils X`: X=1 doit coûter `1/4 PR` et `300₽`, et ajouter +4 Yield aux plantations ciblées.
+- Aller au Growth Stage: les plantes non matures doivent afficher semaines restantes, Soil final et Yield final; les plantes prêtes doivent être marquées `Prête`.
+- Aller au Harvest Stage avec une plante prête: sélectionner la récolte, confirmer, puis vérifier le coût `1/4 PR` par plantation récoltée.
+- Tester Natural Specialty avec le bon type: le jet doit gagner +3 et le Yield +3; avec le nom exact, le Yield doit gagner +3 de plus.
+- Après une récolte, cliquer `Lancer quantité`: le résultat doit rester dans le résumé et l'historique.
+- Vérifier qu'un résultat de récolte `8+` indique la reprise gratuite disponible et que le texte mentionne Soil Quality à 0 après récolte.
+- Entrer un `Bonus PR uniquement Agriculture`, confirmer une Agriculture, puis vérifier que ce bonus ne permet pas de financer Petit Travail, Récolte ou Fabrication.
 - Entrer un bonus avec un quart de PR, par exemple `0.25`, et vérifier que le total affiche `1/4 PR`.
 
 ## Configuration MJ
@@ -151,9 +171,9 @@ Le module ajoute ces settings Foundry:
 - `Mode strict des activités`: empêche de mélanger Petit Travail avec les autres activités pendant une semaine.
 - `Verrouiller les semaines finalisees`: empêche un second entretien pour le même Trainer et la même semaine.
 - `Taux minimum du Petit Travail`: permet un paiement minimum pour Pathetic ou Untrained.
-- `Emplacements bonus maximum`: reserve pour l'Agriculture.
-- `Récolte avec des dés de Skill`: réservé pour les Harvest Stage.
-- `Seuil de reprise gratuite`: reserve pour l'Agriculture.
+- `Emplacements bonus maximum`: nombre d'emplacements bonus au-dessus des 6 emplacements de base.
+- `Récolte avec des dés de Skill`: si actif, les Harvest Stage Agriculture utilisent les dés de Skill; sinon le rang numérique.
+- `Seuil de reprise gratuite`: résultat minimum pour obtenir une reprise gratuite après récolte Agriculture.
 - `Logs de debug`: affiche les chemins PTR manquants dans la console.
 
 ## Stockage
@@ -198,5 +218,5 @@ Chemins importants geres:
 ## Prochaines étapes
 
 1. Validation automatique plus stricte des capabilities, niveaux et Friendship pour certaines Récoltes Pokémon.
-2. Agriculture / Jardinage avec Planting Stage, Growth Stage, Harvest Stage, Natural Specialty et Yield Rolls.
-3. Panneau MJ d'evenement hebdomadaire avec bonus mecaniques.
+2. Panneau MJ d'evenement hebdomadaire avec bonus mecaniques.
+3. Raffinement Agriculture: ajout automatique d'items récoltés quand les UUID exacts des plantes seront connus.

@@ -636,6 +636,278 @@
     </footer>
   {{/if}}
 
+  {{#if isGardeningStep}}
+    <section class="pfg-panel">
+      <h3>Agriculture / Jardinage</h3>
+
+      <div class="pfg-segmented">
+        <button type="button" data-action="garden-stage" data-stage="planting" class="{{#if gardening.isPlantingStage}}active{{/if}}" {{#if gardening.locked}}disabled{{/if}}>
+          Planting
+        </button>
+        <button type="button" data-action="garden-stage" data-stage="growth" class="{{#if gardening.isGrowthStage}}active{{/if}}">
+          Growth
+        </button>
+        <button type="button" data-action="garden-stage" data-stage="harvest" class="{{#if gardening.isHarvestStage}}active{{/if}}" {{#unless gardening.hasReadyEntries}}disabled{{/unless}}>
+          Harvest
+        </button>
+      </div>
+
+      <dl class="pfg-dl">
+        <div>
+          <dt>Emplacements</dt>
+          <dd>{{gardening.slotCount}} / {{gardening.maxSlots}} <small>{{gardening.baseSlotCount}} base + {{gardening.maxBonusSlots}} bonus max</small></dd>
+        </div>
+        <div>
+          <dt>Plantées</dt>
+          <dd>{{gardening.plantedEntries.length}}</dd>
+        </div>
+        <div>
+          <dt>Prêtes</dt>
+          <dd>{{gardening.readyEntries.length}}</dd>
+        </div>
+        <div>
+          <dt>Récoltes choisies</dt>
+          <dd>{{gardening.selectedHarvestCount}}</dd>
+        </div>
+        <div>
+          <dt>Coût PR</dt>
+          <dd>{{gardening.costLabel}}</dd>
+        </div>
+        <div>
+          <dt>Coût Pokédollars</dt>
+          <dd>{{gardening.moneyCostLabel}}</dd>
+        </div>
+        <div>
+          <dt>Restants après</dt>
+          <dd>{{gardening.remainingAfterLabel}}</dd>
+        </div>
+      </dl>
+
+      {{#if gardening.isPlantingStage}}
+        <div class="pfg-two-cols">
+          <label>
+            Sprouter utilisés
+            <input type="number" name="gardenSprouterCount" min="0" step="1" value="{{gardening.modifiers.sprouterCount}}" {{#if gardening.locked}}disabled{{/if}}>
+          </label>
+          <label class="pfg-check">
+            <input type="checkbox" name="gardenSprouterAll" {{#if gardening.modifiers.sprouterAll}}checked{{/if}} {{#if gardening.locked}}disabled{{/if}}>
+            Sprouter sur toutes les plantations
+          </label>
+        </div>
+
+        <div class="pfg-garden-mods">
+          <label>
+            Gardener X
+            <input type="number" name="gardenGardenerCount" min="0" step="1" value="{{gardening.modifiers.gardenerCount}}" {{#if gardening.locked}}disabled{{/if}}>
+            <small>+1 Soil, +1 Yield à 4 plantations par X.</small>
+          </label>
+          <label>
+            Expert Botanist X
+            <input type="number" name="gardenExpertCount" min="0" step="1" value="{{gardening.modifiers.expertCount}}" {{#if gardening.locked}}disabled{{/if}}>
+            <small>+2 Soil, +2 Yield à 6 plantations par X.</small>
+          </label>
+          <label>
+            Mulch X
+            <input type="number" name="gardenMulchCount" min="0" step="1" value="{{gardening.modifiers.mulchCount}}" {{#if gardening.locked}}disabled{{/if}}>
+            <small>200₽ et 1/4 PR par X; cible 4 plantations.</small>
+          </label>
+          <label>
+            Fertilizer X
+            <input type="number" name="gardenFertilizerCount" min="0" step="1" value="{{gardening.modifiers.fertilizerCount}}" {{#if gardening.locked}}disabled{{/if}}>
+            <small>1/4 PR par X; -1 semaine à 4 plantations.</small>
+          </label>
+          <label>
+            Terrain Soils X
+            <input type="number" name="gardenTerrainCount" min="0" step="1" value="{{gardening.modifiers.terrainCount}}" {{#if gardening.locked}}disabled{{/if}}>
+            <small>300₽ et 1/4 PR par X; +4 Yield à 4 plantations.</small>
+          </label>
+        </div>
+
+        <div class="pfg-garden-slots">
+          {{#each gardening.growthEntries}}
+            <article class="pfg-garden-slot {{#if ready}}ready{{/if}}">
+              <header>
+                <strong>#{{number}} {{#if bonus}}Bonus{{else}}Base{{/if}}</strong>
+                {{#if canRemove}}
+                  <button type="button" data-action="remove-garden-slot" data-slot-id="{{id}}" title="Retirer l'emplacement" {{#if ../gardening.locked}}disabled{{/if}}>
+                    <i class="fas fa-xmark"></i>
+                  </button>
+                {{/if}}
+              </header>
+
+              <label>
+                Plante / objet planté
+                <input type="text" name="gardenSlotName:{{id}}" value="{{name}}" placeholder="Oran Berry" {{#if ../gardening.locked}}disabled{{/if}}>
+              </label>
+
+              <div class="pfg-two-cols">
+                <label>
+                  Type
+                  <select name="gardenSlotType:{{id}}" {{#if ../gardening.locked}}disabled{{/if}}>
+                    {{#each typeOptions}}
+                      <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                    {{/each}}
+                  </select>
+                </label>
+                <label>
+                  Tier
+                  <select name="gardenSlotTier:{{id}}" {{#if ../gardening.locked}}disabled{{/if}}>
+                    {{#each tierOptions}}
+                      <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+                    {{/each}}
+                  </select>
+                </label>
+              </div>
+
+              <div class="pfg-three-cols">
+                <label>
+                  Semaines restantes
+                  <input type="number" name="gardenSlotRemaining:{{id}}" min="0" step="1" value="{{remainingWeeks}}" placeholder="{{baseWeeks}}" {{#if ../gardening.locked}}disabled{{/if}}>
+                </label>
+                <label>
+                  Soil Quality
+                  <input type="number" name="gardenSlotSoil:{{id}}" min="0" max="6" step="1" value="{{soilQuality}}" {{#if ../gardening.locked}}disabled{{/if}}>
+                </label>
+                <label>
+                  Bonus Yield
+                  <input type="number" name="gardenSlotYield:{{id}}" min="0" step="1" value="{{yieldBonus}}" {{#if ../gardening.locked}}disabled{{/if}}>
+                </label>
+              </div>
+
+              {{#if bonus}}
+                <label>
+                  Raison emplacement bonus
+                  <input type="text" name="gardenSlotReason:{{id}}" value="{{reason}}" placeholder="Portable Planter, Garden Box..." {{#if ../gardening.locked}}disabled{{/if}}>
+                </label>
+              {{/if}}
+
+              <div class="pfg-garden-checks">
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotFreeReplant:{{id}}" {{#if freeReplant}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Reprise gratuite</label>
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotSprouter:{{id}}" {{#if sprouter}}checked{{/if}} {{#if ../gardening.modifiers.sprouterAll}}disabled{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Sprouter</label>
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotGardener:{{id}}" {{#if gardener}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Gardener</label>
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotExpert:{{id}}" {{#if expert}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Expert</label>
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotMulch:{{id}}" {{#if mulch}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Mulch</label>
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotFertilizer:{{id}}" {{#if fertilizer}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Fertilizer</label>
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotTerrain:{{id}}" {{#if terrain}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Terrain</label>
+              </div>
+
+              <label>
+                Notes
+                <textarea name="gardenSlotNotes:{{id}}" rows="2" {{#if ../gardening.locked}}disabled{{/if}}>{{notes}}</textarea>
+              </label>
+            </article>
+          {{/each}}
+        </div>
+
+        <button type="button" data-action="add-garden-slot" {{#unless gardening.canAddSlot}}disabled{{/unless}}>
+          <i class="fas fa-plus"></i>
+          Ajouter un emplacement
+        </button>
+      {{/if}}
+
+      {{#if gardening.isGrowthStage}}
+        <div class="pfg-garden-slots compact">
+          {{#each gardening.plantedEntries}}
+            <article class="pfg-garden-slot {{#if ready}}ready{{/if}}">
+              <header>
+                <strong>#{{number}} {{name}}</strong>
+                <span>{{statusLabel}}</span>
+              </header>
+              <dl class="pfg-dl">
+                <div><dt>Type / Tier</dt><dd>{{typeLabel}} - {{tierLabel}}</dd></div>
+                <div><dt>Soil final</dt><dd>{{finalSoilQuality}} <small>+{{soilBonus}}, réduction {{soilReduction}}</small></dd></div>
+                <div><dt>Yield final</dt><dd>{{finalYieldBonus}} <small>+{{modifierYieldBonus}}</small></dd></div>
+                <div><dt>Semaines après</dt><dd>{{remainingAfterModifiers}}</dd></div>
+              </dl>
+            </article>
+          {{/each}}
+        </div>
+
+        {{#unless gardening.hasReadyEntries}}
+          <p class="pfg-note">Aucune plante prête: tu peux confirmer la croissance et terminer l'Agriculture.</p>
+        {{/unless}}
+      {{/if}}
+
+      {{#if gardening.isHarvestStage}}
+        <div class="pfg-two-cols">
+          <label>
+            Skill de récolte
+            <select name="gardenHarvestSkillMode" {{#if gardening.locked}}disabled{{/if}}>
+              <option value="survival" {{#unless gardening.harvestSkillModeBest}}selected{{/unless}}>Survival</option>
+              <option value="best" {{#if gardening.harvestSkillModeBest}}selected{{/if}}>Meilleur admissible</option>
+            </select>
+          </label>
+          <label class="pfg-check">
+            <input type="checkbox" name="gardenNaturalSpecialtyEnabled" {{#if gardening.naturalSpecialty.enabled}}checked{{/if}} {{#if gardening.locked}}disabled{{/if}}>
+            Natural Specialty
+          </label>
+        </div>
+
+        <div class="pfg-two-cols">
+          <label>
+            Type spécialisé
+            <select name="gardenNaturalSpecialtyType" {{#if gardening.locked}}disabled{{/if}}>
+              {{#each gardening.plantTypeOptions}}
+                <option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+              {{/each}}
+            </select>
+          </label>
+          <label>
+            Nom précis optionnel
+            <input type="text" name="gardenNaturalSpecialtyName" value="{{gardening.naturalSpecialty.name}}" placeholder="Oran Berry" {{#if gardening.locked}}disabled{{/if}}>
+          </label>
+        </div>
+
+        <p class="pfg-note">Jet: {{#if gardening.harvestRollUsesSkillDice}}1d6 + dés Survival + Soil + 2 + bonus{{else}}1d6 + rang Survival + Soil + 2 + bonus{{/if}}. Reprise gratuite à {{gardening.freeReplantThreshold}}+.</p>
+
+        <div class="pfg-garden-slots compact">
+          {{#each gardening.readyEntries}}
+            <article class="pfg-garden-slot ready">
+              <header>
+                <label class="pfg-check">
+                  <input type="checkbox" name="gardenSlotHarvest:{{id}}" {{#if harvest}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}>
+                  Récolter #{{number}} {{name}}
+                </label>
+              </header>
+              <dl class="pfg-dl">
+                <div><dt>Type / Tier</dt><dd>{{typeLabel}} - {{tierLabel}}</dd></div>
+                <div><dt>Soil</dt><dd>{{finalSoilQuality}}</dd></div>
+                <div><dt>Yield</dt><dd>{{finalYieldBonus}}</dd></div>
+                <div><dt>Skill</dt><dd>{{skillLabel}} - {{skillRankLabel}}</dd></div>
+              </dl>
+            </article>
+          {{/each}}
+        </div>
+      {{/if}}
+
+      {{#if gardening.hasRequirementErrors}}
+        <ul class="pfg-warning pfg-errors">
+          {{#each gardening.requirementErrors}}
+            <li>{{this}}</li>
+          {{/each}}
+        </ul>
+      {{/if}}
+    </section>
+
+    <footer class="pfg-actions">
+      <button type="button" data-action="back">
+        <i class="fas fa-arrow-left"></i>
+        Retour
+      </button>
+      {{#if gardening.locked}}
+        <button type="button" data-action="to-summary">
+          <i class="fas fa-list-check"></i>
+          Voir résumé
+        </button>
+      {{else}}
+        <button type="button" data-action="confirm-gardening" {{#unless gardening.canConfirm}}disabled{{/unless}}>
+          <i class="fas fa-seedling"></i>
+          Confirmer Agriculture
+        </button>
+      {{/if}}
+    </footer>
+  {{/if}}
+
   {{#if isWorkStep}}
     <section class="pfg-panel">
       <h3>Petit Travail Hebdomadaire</h3>
@@ -773,6 +1045,56 @@
           {{/if}}
           <p class="pfg-success">{{currentActivity.resultStatus}}</p>
         {{else}}
+        {{#if currentActivity.isGardening}}
+          <dl class="pfg-dl">
+            <div>
+              <dt>Activité</dt>
+              <dd>{{currentActivity.title}}</dd>
+            </div>
+            <div>
+              <dt>Plantations</dt>
+              <dd>{{currentActivity.plantedCount}}</dd>
+            </div>
+            <div>
+              <dt>Prêtes</dt>
+              <dd>{{currentActivity.readyCount}}</dd>
+            </div>
+            <div>
+              <dt>Récoltées</dt>
+              <dd>{{currentActivity.harvestedCount}}</dd>
+            </div>
+            <div>
+              <dt>Coût PR</dt>
+              <dd>{{currentActivity.costLabel}}</dd>
+            </div>
+            <div>
+              <dt>Coût Pokédollars</dt>
+              <dd>{{currentActivity.moneyCostLabel}}</dd>
+            </div>
+          </dl>
+
+          {{#if currentActivity.hasHarvestResults}}
+            <p><strong>Récoltes lancées:</strong></p>
+            <ol class="pfg-rolls">
+              {{#each currentActivity.harvestResults}}
+                <li>
+                  <strong>{{plantName}}</strong> - {{resultLabel}} ({{total}}) - formule quantité {{quantityFormula}}
+                  {{#if naturalSpecialtyApplied}}<small>{{naturalSpecialtyLabel}}</small>{{/if}}
+                  <small>{{freeReplantLabel}}</small>
+                  {{#if quantityRolled}}
+                    <span>Quantité: {{quantityResultLabel}}</span>
+                  {{else}}
+                    <button type="button" data-action="roll-garden-quantity" data-slot-id="{{slotId}}">
+                      <i class="fas fa-dice-d6"></i>
+                      Lancer quantité
+                    </button>
+                  {{/if}}
+                </li>
+              {{/each}}
+            </ol>
+          {{/if}}
+          <p class="pfg-success">{{currentActivity.resultStatus}}</p>
+        {{else}}
         {{#if currentActivity.isHarvest}}
           <dl class="pfg-dl">
             <div>
@@ -852,6 +1174,7 @@
           {{/if}}
         {{/if}}
         {{/if}}
+        {{/if}}
       {{else}}
         <p class="pfg-warning">Aucune activité lancée.</p>
       {{/if}}
@@ -868,6 +1191,17 @@
                   <ol>
                     {{#each weapon.summaryLines}}
                       <li>{{this}}</li>
+                    {{/each}}
+                  </ol>
+                {{/if}}
+              {{else}}
+              {{#if isGardening}}
+                <strong>#{{number}} {{title}}</strong> - {{summaryLine}} - {{costLabel}} - {{moneyCostLabel}}
+                <small>{{resultStatus}}</small>
+                {{#if hasHarvestResults}}
+                  <ol>
+                    {{#each harvestResults}}
+                      <li>{{plantName}} - {{resultLabel}} ({{total}}){{#if quantityRolled}} - {{quantityResultLabel}}{{/if}}</li>
                     {{/each}}
                   </ol>
                 {{/if}}
@@ -892,6 +1226,7 @@
                 </ol>
               {{/if}}
               {{/if}}
+              {{/if}}
             </li>
           {{/each}}
         </ol>
@@ -908,6 +1243,7 @@
         Poster résumé
       </button>
       {{#if hasCurrentActivity}}
+        {{#unless currentActivity.isGardening}}
         {{#unless currentActivity.isHarvest}}
           {{#unless currentActivity.isCrafting}}
             <button type="button" data-action="apply-gains" {{#unless canApplyCurrentActivity}}disabled{{/unless}}>
@@ -915,6 +1251,7 @@
               Appliquer les gains
             </button>
           {{/unless}}
+        {{/unless}}
         {{/unless}}
       {{/if}}
       {{#if canStartAnotherActivity}}

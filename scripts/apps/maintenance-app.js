@@ -5,6 +5,9 @@ import {
   CRAFTING_JOURNAL_UUID,
   CRAFTING_TYPES,
   DEFAULT_WEEK_DATA,
+  GARDEN_BASE_SLOTS,
+  GARDEN_PLANT_TYPES,
+  GARDEN_TIERS,
   HARVEST_RESULT_TYPES,
   MAINTENANCE_SKILL_KEYS,
   MODULE_ID,
@@ -109,6 +112,7 @@ export class PfgMaintenanceApp extends Application {
         weapon: createDefaultWeaponCraftingState(),
         ingredients: []
       },
+      gardening: createDefaultGardeningState(),
       activities: [],
       currentActivity: null,
       finalized: false
@@ -147,6 +151,7 @@ export class PfgMaintenanceApp extends Application {
     const workData = this.getWorkData(actor, budget.availableByActivity[ACTIVITY_KEYS.work] ?? 0);
     const harvestData = this.getHarvestData(actor, budget.availableByActivity[ACTIVITY_KEYS.pokemonHarvest] ?? 0);
     const craftingData = this.getCraftingData(actor, budget.availableByActivity[ACTIVITY_KEYS.crafting] ?? 0);
+    const gardeningData = this.getGardeningData(actor, budget.availableByActivity[ACTIVITY_KEYS.gardening] ?? 0);
     const activityHistory = plannedActivities.map((activity, index) => ({
       ...activity,
       number: index + 1,
@@ -172,6 +177,7 @@ export class PfgMaintenanceApp extends Application {
       isActivityStep: this.state.step === "activity",
       isCraftingStep: this.state.step === "crafting",
       isHarvestStep: this.state.step === "harvest",
+      isGardeningStep: this.state.step === "gardening",
       isWorkStep: this.state.step === "work",
       isSummaryStep: this.state.step === "summary",
       hasTrainers: trainers.length > 0,
@@ -213,6 +219,7 @@ export class PfgMaintenanceApp extends Application {
       work: workData,
       harvest: harvestData,
       crafting: craftingData,
+      gardening: gardeningData,
       activities: plannedActivities,
       activityHistory,
       hasActivityHistory: activityHistory.length > 0,
@@ -246,11 +253,11 @@ export class PfgMaintenanceApp extends Application {
       this.render(false);
     });
 
-    html.on("input", "input[name='weekName'], input[name='rpDate'], input[name='eventName'], textarea[name='eventDescription'], input[name='workDescription'], input[name='harvestPokemonName'], input[name='harvestSecondPokemonName'], input[name='craftWeaponName']", (event) => {
+    html.on("input", "input[name='weekName'], input[name='rpDate'], input[name='eventName'], textarea[name='eventDescription'], input[name='workDescription'], input[name='harvestPokemonName'], input[name='harvestSecondPokemonName'], input[name='craftWeaponName'], input[name^='garden'], textarea[name^='garden']", (event) => {
       this.updateFieldState(event.currentTarget);
     });
 
-    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], input[name='bonusPR'], input[name='bonusPRCrafting'], input[name='bonusPRHarvest'], input[name='bonusPRWork'], input[name='bonusPRGardening'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], input[name='harvestCount'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], select[name='craftWeaponCategory'], select[name='craftWeaponBase'], select[name='craftWeaponTier1Move'], select[name='craftWeaponTier2Move'], input[name^='craftIngredientQuantity:']", (event) => {
+    html.on("change", "select[name='prSkillKey'], input[name='manualLevel'], input[name='manualPower'], input[name='bonusPR'], input[name='bonusPRCrafting'], input[name='bonusPRHarvest'], input[name='bonusPRWork'], input[name='bonusPRGardening'], select[name='workSkillKey'], input[name='workCount'], select[name='harvestKey'], input[name='harvestCount'], select[name='harvestPokemonId'], input[name='harvestOwnsPokemon'], input[name='harvestPaleontologyConfirmed'], input[name='harvestRareCandyIngredientConfirmed'], select[name='craftType'], input[name='craftQuantity'], input[name='craftMoneyMode'], input[name='craftMoneyValue'], select[name='craftWeaponCategory'], select[name='craftWeaponBase'], select[name='craftWeaponTier1Move'], select[name='craftWeaponTier2Move'], input[name^='craftIngredientQuantity:'], input[name^='garden'], select[name^='garden'], textarea[name^='garden']", (event) => {
       this.updateFieldState(event.currentTarget);
       this.render(false);
     });
@@ -336,6 +343,11 @@ export class PfgMaintenanceApp extends Application {
         this.render(false);
         return;
       }
+      if (this.state.selectedActivity === ACTIVITY_KEYS.gardening) {
+        this.state.step = "gardening";
+        this.render(false);
+        return;
+      }
 
       ui.notifications.info("Cette activité sera ajoutée dans une prochaine étape du module.");
       return;
@@ -370,6 +382,31 @@ export class PfgMaintenanceApp extends Application {
 
     if (action === "roll-harvest") {
       await this.confirmHarvest();
+      return;
+    }
+
+    if (action === "garden-stage") {
+      this.setGardenStage(control?.dataset?.stage);
+      return;
+    }
+
+    if (action === "add-garden-slot") {
+      this.addGardenSlot();
+      return;
+    }
+
+    if (action === "remove-garden-slot") {
+      this.removeGardenSlot(control?.dataset?.slotId);
+      return;
+    }
+
+    if (action === "confirm-gardening") {
+      await this.confirmGardening();
+      return;
+    }
+
+    if (action === "roll-garden-quantity") {
+      await this.rollGardenQuantity(control?.dataset?.slotId);
       return;
     }
 
@@ -463,11 +500,17 @@ export class PfgMaintenanceApp extends Application {
         this.updateCraftIngredientQuantity(String(key).split(":").slice(1).join(":"), value);
       }
     }
+    this.readGardeningForm(data, form);
   }
 
   updateFieldState(field) {
     const name = field?.name;
     if (!name) return;
+
+    if (String(name).startsWith("garden")) {
+      if (field.form) this.readGardeningForm(new FormData(field.form), field.form);
+      return;
+    }
 
     if (name === "manualLevel") this.state.manualLevel = stringValue(field.value);
     if (name === "manualPower") this.state.manualPower = stringValue(field.value);
@@ -505,6 +548,41 @@ export class PfgMaintenanceApp extends Application {
     if (name === "craftWeaponTier2Move") weaponState.tier2MoveKey = stringValue(field.value) || weaponState.tier2MoveKey;
     if (String(name).startsWith("craftIngredientQuantity:")) {
       this.updateCraftIngredientQuantity(String(name).split(":").slice(1).join(":"), field.value);
+    }
+  }
+
+  readGardeningForm(data, form) {
+    if (!data || !form) return;
+    const gardening = this.ensureGardeningState();
+    if (data.has("gardenHarvestSkillMode")) gardening.harvestSkillMode = normalizeGardenHarvestSkillMode(data.get("gardenHarvestSkillMode"));
+    if (data.has("gardenNaturalSpecialtyType")) gardening.naturalSpecialty.type = normalizeGardenPlantType(data.get("gardenNaturalSpecialtyType"));
+    if (data.has("gardenNaturalSpecialtyName")) gardening.naturalSpecialty.name = stringValue(data.get("gardenNaturalSpecialtyName"));
+    if (form.querySelector?.("[name='gardenNaturalSpecialtyEnabled']")) gardening.naturalSpecialty.enabled = data.has("gardenNaturalSpecialtyEnabled");
+    if (form.querySelector?.("[name='gardenSprouterAll']")) gardening.modifiers.sprouterAll = data.has("gardenSprouterAll");
+
+    for (const key of ["sprouter", "gardener", "expert", "mulch", "fertilizer", "terrain"]) {
+      const fieldName = `garden${capitalize(key)}Count`;
+      if (data.has(fieldName)) gardening.modifiers[`${key}Count`] = readNonNegativeCount(data.get(fieldName));
+    }
+
+    for (const slot of gardening.slots) {
+      const id = slot.id;
+      if (data.has(`gardenSlotName:${id}`)) slot.name = stringValue(data.get(`gardenSlotName:${id}`));
+      if (data.has(`gardenSlotType:${id}`)) slot.type = normalizeGardenPlantType(data.get(`gardenSlotType:${id}`));
+      if (data.has(`gardenSlotTier:${id}`)) slot.tier = normalizeGardenTier(data.get(`gardenSlotTier:${id}`));
+      if (data.has(`gardenSlotRemaining:${id}`)) slot.remainingWeeks = readOptionalNonNegativeCount(data.get(`gardenSlotRemaining:${id}`));
+      if (data.has(`gardenSlotSoil:${id}`)) slot.soilQuality = clampNumber(data.get(`gardenSlotSoil:${id}`), 0, 6);
+      if (data.has(`gardenSlotYield:${id}`)) slot.yieldBonus = readNonNegativeCount(data.get(`gardenSlotYield:${id}`));
+      if (data.has(`gardenSlotReason:${id}`)) slot.reason = stringValue(data.get(`gardenSlotReason:${id}`));
+      if (data.has(`gardenSlotNotes:${id}`)) slot.notes = stringValue(data.get(`gardenSlotNotes:${id}`));
+
+      for (const key of ["FreeReplant", "Sprouter", "Gardener", "Expert", "Mulch", "Fertilizer", "Terrain", "Harvest"]) {
+        const fieldName = `gardenSlot${key}:${id}`;
+        if (form.querySelector?.(`[name='${cssEscape(fieldName)}']`)) {
+          const stateKey = key === "FreeReplant" ? "freeReplant" : key.charAt(0).toLowerCase() + key.slice(1);
+          slot[stateKey] = data.has(fieldName);
+        }
+      }
     }
   }
 
@@ -708,8 +786,130 @@ export class PfgMaintenanceApp extends Application {
     };
   }
 
+  getGardeningData(actor, availablePRQ) {
+    const lockedActivity = this.state.currentActivity?.key === ACTIVITY_KEYS.gardening ? this.state.currentActivity : null;
+    const remainingBefore = Math.max(0, Math.trunc(Number(availablePRQ) || 0));
+    const state = this.ensureGardeningState();
+    const maxBonusSlots = Math.max(0, Math.trunc(Number(setting(SETTINGS.maxBonusGardenSlots, 6)) || 0));
+    const maxSlots = GARDEN_BASE_SLOTS + maxBonusSlots;
+    state.slots = state.slots.slice(0, maxSlots);
+
+    if (lockedActivity) {
+      const lockedGrowthEntries = lockedActivity.growthEntries ?? [];
+      const lockedReadyEntries = lockedActivity.readyEntries ?? [];
+      return {
+        ...state,
+        stage: state.stage,
+        isPlantingStage: state.stage === "planting",
+        isGrowthStage: state.stage === "growth",
+        isHarvestStage: state.stage === "harvest",
+        locked: true,
+        maxSlots,
+        slotCount: lockedGrowthEntries.length,
+        baseSlotCount: GARDEN_BASE_SLOTS,
+        bonusSlotCount: Math.max(0, lockedGrowthEntries.length - GARDEN_BASE_SLOTS),
+        maxBonusSlots,
+        canAddSlot: false,
+        slots: lockedGrowthEntries,
+        growthEntries: lockedGrowthEntries,
+        plantedEntries: lockedGrowthEntries.filter((slot) => slot.isPlanted),
+        readyEntries: lockedReadyEntries,
+        hasReadyEntries: lockedReadyEntries.length > 0,
+        selectedHarvestCount: lockedActivity.harvestedCount ?? 0,
+        plantTypeOptions: GARDEN_PLANT_TYPES.map((option) => ({
+          ...option,
+          selected: option.key === state.naturalSpecialty.type
+        })),
+        harvestResults: lockedActivity.harvestResults ?? [],
+        hasHarvestResults: Boolean(lockedActivity.hasHarvestResults),
+        costPRQ: lockedActivity.costPRQ ?? 0,
+        costLabel: lockedActivity.costLabel ?? formatPRQ(0),
+        moneyCost: lockedActivity.moneyCost ?? 0,
+        moneyCostLabel: lockedActivity.moneyCostLabel ?? formatMoney(0),
+        remainingBefore,
+        remainingBeforeLabel: formatPRQ(remainingBefore),
+        remainingAfterLabel: formatPRQ(remainingBefore),
+        resultStatus: lockedActivity.resultStatus ?? "Agriculture déjà confirmée.",
+        canConfirm: false,
+        requirementErrors: [],
+        hasRequirementErrors: false
+      };
+    }
+
+    const skill = getSkillRank(actor, "survival");
+    const growthEntries = calculateGardenEntries(state, skill);
+    const plantedEntries = growthEntries.filter((slot) => slot.isPlanted);
+    const readyEntries = plantedEntries.filter((slot) => slot.ready);
+    const selectedHarvestEntries = readyEntries.filter((slot) => slot.harvest);
+    const modifierSummary = getGardenModifierSummary(state, plantedEntries);
+    const costPRQ = modifierSummary.costPRQ + (selectedHarvestEntries.length * ACTIVITY_COSTS_PRQ.gardenHarvest);
+    const moneyCost = modifierSummary.moneyCost;
+    const requirementErrors = getGardeningRequirementErrors(actor, {
+      plantedEntries,
+      selectedHarvestEntries,
+      modifierSummary,
+      remainingBefore,
+      costPRQ,
+      moneyCost
+    });
+
+    return {
+      ...state,
+      isPlantingStage: state.stage === "planting",
+      isGrowthStage: state.stage === "growth",
+      isHarvestStage: state.stage === "harvest",
+      locked: false,
+      maxSlots,
+      canAddSlot: state.slots.length < maxSlots,
+      slotCount: state.slots.length,
+      baseSlotCount: GARDEN_BASE_SLOTS,
+      bonusSlotCount: Math.max(0, state.slots.length - GARDEN_BASE_SLOTS),
+      maxBonusSlots,
+      plantTypeOptions: GARDEN_PLANT_TYPES.map((option) => ({
+        ...option,
+        selected: option.key === state.naturalSpecialty.type
+      })),
+      tierOptions: GARDEN_TIERS,
+      growthEntries,
+      plantedEntries,
+      readyEntries,
+      hasReadyEntries: readyEntries.length > 0,
+      selectedHarvestEntries,
+      selectedHarvestCount: selectedHarvestEntries.length,
+      modifierSummary,
+      skill,
+      harvestSkillModeBest: state.harvestSkillMode === "best",
+      skillLabel: skill?.label ?? "Survival",
+      skillRankLabel: skill?.rankLabel ?? getRankLabel(0),
+      skillDiceFormula: skill?.diceFormula ?? "0d6",
+      harvestRollUsesSkillDice: setting(SETTINGS.harvestRollUsesSkillDice, true),
+      freeReplantThreshold: Math.max(1, Math.trunc(Number(setting(SETTINGS.freeReplantThreshold, 8)) || 8)),
+      costPRQ,
+      costLabel: formatPRQ(costPRQ),
+      moneyCost,
+      moneyCostLabel: formatMoney(moneyCost),
+      remainingBefore,
+      remainingBeforeLabel: formatPRQ(remainingBefore),
+      remainingAfterLabel: formatPRQ(Math.max(0, remainingBefore - costPRQ)),
+      requirementErrors,
+      hasRequirementErrors: requirementErrors.length > 0,
+      canConfirm: Boolean(actor && requirementErrors.length === 0)
+    };
+  }
+
   getPlannedActivities() {
     return this.state.activities ?? [];
+  }
+
+  ensureGardeningState() {
+    if (!this.state.gardening) this.state.gardening = createDefaultGardeningState();
+    if (!Array.isArray(this.state.gardening.slots)) this.state.gardening.slots = [];
+    while (this.state.gardening.slots.length < GARDEN_BASE_SLOTS) {
+      this.state.gardening.slots.push(createGardenSlot(this.state.gardening.slots.length));
+    }
+    if (!this.state.gardening.modifiers) this.state.gardening.modifiers = createDefaultGardenModifiers();
+    if (!this.state.gardening.naturalSpecialty) this.state.gardening.naturalSpecialty = createDefaultNaturalSpecialty();
+    return this.state.gardening;
   }
 
   ensureWeaponCraftingState() {
@@ -1380,6 +1580,148 @@ export class PfgMaintenanceApp extends Application {
     this.render(false);
   }
 
+  setGardenStage(stage) {
+    const gardening = this.ensureGardeningState();
+    gardening.stage = ["planting", "growth", "harvest"].includes(stage) ? stage : "planting";
+    this.render(false);
+  }
+
+  addGardenSlot() {
+    const gardening = this.ensureGardeningState();
+    const maxBonusSlots = Math.max(0, Math.trunc(Number(setting(SETTINGS.maxBonusGardenSlots, 6)) || 0));
+    const maxSlots = GARDEN_BASE_SLOTS + maxBonusSlots;
+    if (gardening.slots.length >= maxSlots) {
+      ui.notifications.warn(`Maximum d'emplacements atteint (${maxSlots}).`);
+      return;
+    }
+    gardening.slots.push(createGardenSlot(gardening.slots.length, true));
+    this.render(false);
+  }
+
+  removeGardenSlot(slotId) {
+    const gardening = this.ensureGardeningState();
+    const id = stringValue(slotId);
+    const slot = gardening.slots.find((entry) => entry.id === id);
+    if (!slot || !slot.bonus) return;
+    gardening.slots = gardening.slots.filter((entry) => entry.id !== id);
+    this.render(false);
+  }
+
+  async confirmGardening() {
+    const actor = this.actor;
+    if (!actor) return;
+
+    if (this.state.currentActivity) {
+      ui.notifications.warn("Une activité a déjà été confirmée. Le résultat est conservé dans l'historique.");
+      this.state.step = "summary";
+      this.render(false);
+      return;
+    }
+
+    const data = this.getData();
+    const gardening = data.gardening;
+    if (!gardening.canConfirm) {
+      ui.notifications.warn(gardening.requirementErrors?.[0] ?? "Agriculture impossible avec les données actuelles.");
+      return;
+    }
+
+    const confirmed = await confirmDialog(
+      "Confirmer l'Agriculture",
+      `<p>Confirmer ${escapeHtml(gardening.plantedEntries.length)} plantation(s), ${escapeHtml(gardening.selectedHarvestCount)} récolte(s), pour ${escapeHtml(gardening.costLabel)} et ${escapeHtml(gardening.moneyCostLabel)} ?</p>`
+    );
+    if (!confirmed) return;
+
+    if (gardening.moneyCost > 0) {
+      const paid = await deductMoney(actor, gardening.moneyCost);
+      if (!paid) {
+        ui.notifications.warn("Impossible de retirer les Pokédollars du Trainer.");
+        return;
+      }
+    }
+
+    const harvestResults = [];
+    for (const slot of gardening.selectedHarvestEntries) {
+      harvestResults.push(await rollGardenHarvest(actor, gardening, slot));
+    }
+
+    const resultStatus = harvestResults.length > 0
+      ? `${harvestResults.length} récolte(s) lancée(s). Lance les quantités depuis le résumé si désiré.`
+      : (gardening.readyEntries.length > 0
+        ? `${gardening.readyEntries.length} plante(s) prête(s), aucune récolte sélectionnée.`
+        : "Croissance enregistrée; aucune plante prête cette semaine.");
+    const activity = {
+      key: ACTIVITY_KEYS.gardening,
+      isGardening: true,
+      title: "Agriculture / Jardinage",
+      description: "Agriculture / Jardinage",
+      plantedCount: gardening.plantedEntries.length,
+      readyCount: gardening.readyEntries.length,
+      harvestedCount: harvestResults.length,
+      costPRQ: gardening.costPRQ,
+      costLabel: gardening.costLabel,
+      moneyCost: gardening.moneyCost,
+      moneyCostLabel: gardening.moneyCostLabel,
+      moneyDelta: -gardening.moneyCost,
+      modifierSummary: gardening.modifierSummary,
+      growthEntries: gardening.growthEntries,
+      readyEntries: gardening.readyEntries,
+      harvestResults,
+      hasHarvestResults: harvestResults.length > 0,
+      resultStatus,
+      summaryLine: `${gardening.plantedEntries.length} plantation(s), ${gardening.readyEntries.length} prête(s), ${harvestResults.length} récoltée(s)`,
+      rolls: harvestResults,
+      totalGain: 0,
+      applied: true
+    };
+
+    this.state.activities.push(activity);
+    this.state.currentActivity = activity;
+    const totals = this.getTotals();
+
+    await postActivitySummary({
+      actor,
+      activity,
+      activities: [activity],
+      calendar: getCurrentWeekData(this.state.calendar),
+      totalPRLabel: formatPRQ(totals.totalPRQ),
+      spentPRLabel: formatPRQ(totals.spentPRQ),
+      remainingPRLabel: formatPRQ(totals.remainingPRQ),
+      isActivity: true
+    });
+
+    ui.notifications.info("Agriculture confirmée et ajoutée à l'historique.");
+    this.state.step = "summary";
+    this.render(false);
+  }
+
+  async rollGardenQuantity(slotId) {
+    const actor = this.actor;
+    const activity = this.state.currentActivity;
+    if (!actor || activity?.key !== ACTIVITY_KEYS.gardening) return;
+    const id = stringValue(slotId);
+    const entry = (activity.harvestResults ?? []).find((result) => result.slotId === id);
+    if (!entry) return;
+    if (entry.quantityRolled) {
+      ui.notifications.info("La quantité de cette récolte est déjà lancée.");
+      return;
+    }
+
+    const roll = await new Roll(entry.quantityFormula).evaluate({ async: true });
+    entry.quantity = Math.max(0, Math.trunc(Number(roll.total) || 0));
+    entry.quantityRolled = true;
+    entry.quantityRollTotal = entry.quantity;
+    entry.quantityResultLabel = `${entry.quantity} × ${entry.plantName}`;
+    if (roll.toMessage) {
+      await roll.toMessage({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        flavor: `Quantité récoltée - ${entry.plantName}`
+      });
+    }
+    activity.resultStatus = "Agriculture confirmée; quantités mises à jour dans le résumé.";
+    ui.notifications.info(`Quantité récoltée: ${entry.quantityResultLabel}.`);
+    this.render(false);
+  }
+
   async postCurrentActivity() {
     const actor = this.actor;
     const activity = this.state.currentActivity;
@@ -1449,6 +1791,7 @@ export class PfgMaintenanceApp extends Application {
     this.resetWorkState();
     this.resetHarvestState();
     this.resetCraftingState();
+    this.resetGardeningState();
     this.state.step = "activity";
     this.render(false);
   }
@@ -1557,9 +1900,11 @@ export class PfgMaintenanceApp extends Application {
       this.state.step = "crafting";
     } else if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest) {
       this.state.step = "harvest";
+    } else if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.gardening) {
+      this.state.step = "gardening";
     } else if (this.state.step === "summary" && this.state.currentActivity?.key === ACTIVITY_KEYS.work) {
       this.state.step = "work";
-    } else if (this.state.step === "work" || this.state.step === "harvest" || this.state.step === "crafting") {
+    } else if (this.state.step === "work" || this.state.step === "harvest" || this.state.step === "crafting" || this.state.step === "gardening") {
       this.state.step = "activity";
     } else if (this.state.step === "activity") {
       this.state.step = "pr";
@@ -1575,6 +1920,7 @@ export class PfgMaintenanceApp extends Application {
     this.resetWorkState(skillKey);
     this.resetHarvestState();
     this.resetCraftingState();
+    this.resetGardeningState();
     this.state.activities = [];
     this.state.currentActivity = null;
     this.state.finalized = false;
@@ -1620,6 +1966,10 @@ export class PfgMaintenanceApp extends Application {
     };
   }
 
+  resetGardeningState() {
+    this.state.gardening = createDefaultGardeningState();
+  }
+
   selectTrainer(actor) {
     this.state.actorId = getActorKey(actor);
     this.state.step = this.state.startWeaponCrafting ? "crafting" : "pr";
@@ -1654,6 +2004,10 @@ function getVisibleSteps(state) {
     || state.selectedActivity === ACTIVITY_KEYS.pokemonHarvest
     || state.currentActivity?.key === ACTIVITY_KEYS.pokemonHarvest
     ? { key: "harvest", label: "Récolte" }
+    : state.step === "gardening"
+    || state.selectedActivity === ACTIVITY_KEYS.gardening
+    || state.currentActivity?.key === ACTIVITY_KEYS.gardening
+    ? { key: "gardening", label: "Jardinage" }
     : { key: "work", label: "Petit Travail" };
 
   return [
@@ -1674,6 +2028,314 @@ function createDefaultWeaponCraftingState() {
     tier1MoveKey: category?.tier1?.[0]?.key ?? "",
     tier2MoveKey: category?.tier2?.[0]?.key ?? ""
   };
+}
+
+function createDefaultGardeningState() {
+  return {
+    stage: "planting",
+    harvestSkillMode: "survival",
+    modifiers: createDefaultGardenModifiers(),
+    naturalSpecialty: createDefaultNaturalSpecialty(),
+    slots: Array.from({ length: GARDEN_BASE_SLOTS }, (_, index) => createGardenSlot(index))
+  };
+}
+
+function createDefaultGardenModifiers() {
+  return {
+    sprouterCount: 0,
+    sprouterAll: false,
+    gardenerCount: 0,
+    expertCount: 0,
+    mulchCount: 0,
+    fertilizerCount: 0,
+    terrainCount: 0
+  };
+}
+
+function createDefaultNaturalSpecialty() {
+  return {
+    enabled: false,
+    type: GARDEN_PLANT_TYPES[0]?.key ?? "berry",
+    name: ""
+  };
+}
+
+function createGardenSlot(index = 0, bonus = false) {
+  const number = index + 1;
+  return {
+    id: bonus ? createLocalId("garden") : `base-${number}`,
+    number,
+    bonus,
+    name: "",
+    type: GARDEN_PLANT_TYPES[0]?.key ?? "berry",
+    tier: GARDEN_TIERS[0]?.key ?? "1",
+    freeReplant: false,
+    remainingWeeks: "",
+    soilQuality: 0,
+    yieldBonus: 0,
+    reason: "",
+    notes: "",
+    sprouter: false,
+    gardener: false,
+    expert: false,
+    mulch: false,
+    fertilizer: false,
+    terrain: false,
+    harvest: true
+  };
+}
+
+function calculateGardenEntries(state, skill) {
+  const modifiers = state.modifiers ?? createDefaultGardenModifiers();
+  return (state.slots ?? []).map((slot, index) => {
+    const type = normalizeGardenPlantType(slot.type);
+    const tier = normalizeGardenTier(slot.tier);
+    const tierNumber = Number(tier) || 1;
+    const baseWeeks = getBaseGrowthWeeks(type, tierNumber);
+    const isPlanted = Boolean(stringValue(slot.name));
+    const currentRemainingWeeks = slot.remainingWeeks === "" || slot.remainingWeeks === null || slot.remainingWeeks === undefined
+      ? baseWeeks
+      : readNonNegativeCount(slot.remainingWeeks);
+    const currentSoilQuality = clampNumber(slot.soilQuality, 0, 6);
+    const currentYieldBonus = readNonNegativeCount(slot.yieldBonus);
+    const sprouterApplied = isPlanted && modifiers.sprouterCount > 0 && (modifiers.sprouterAll || slot.sprouter);
+    const gardenerApplied = isPlanted && Boolean(slot.gardener);
+    const expertApplied = isPlanted && Boolean(slot.expert);
+    const mulchApplied = isPlanted && Boolean(slot.mulch);
+    const fertilizerApplied = isPlanted && Boolean(slot.fertilizer);
+    const terrainApplied = isPlanted && Boolean(slot.terrain);
+    const soilBonus = (sprouterApplied ? 2 * Math.max(0, modifiers.sprouterCount) : 0)
+      + (gardenerApplied ? 1 : 0)
+      + (expertApplied ? 2 : 0)
+      + (mulchApplied ? 1 : 0);
+    const finalSoilQuality = clampNumber(currentSoilQuality + soilBonus, 0, 6);
+    const soilReduction = Math.floor(finalSoilQuality / 2);
+    const fertilizerReduction = fertilizerApplied ? 1 : 0;
+    const remainingAfterModifiers = Math.max(0, currentRemainingWeeks - soilReduction - fertilizerReduction);
+    const modifierYieldBonus = (gardenerApplied ? 1 : 0)
+      + (expertApplied ? 2 : 0)
+      + (mulchApplied ? 1 : 0)
+      + (terrainApplied ? 4 : 0);
+    const finalYieldBonus = Math.max(0, currentYieldBonus + modifierYieldBonus);
+    const ready = Boolean(isPlanted && remainingAfterModifiers <= 0);
+
+    return {
+      ...slot,
+      number: index + 1,
+      type,
+      tier,
+      tierNumber,
+      typeLabel: getGardenPlantTypeLabel(type),
+      tierLabel: getGardenTierLabel(tier),
+      typeOptions: GARDEN_PLANT_TYPES.map((option) => ({ ...option, selected: option.key === type })),
+      tierOptions: GARDEN_TIERS.map((option) => ({ ...option, selected: option.key === tier })),
+      baseWeeks,
+      isPlanted,
+      currentRemainingWeeks,
+      currentSoilQuality,
+      currentYieldBonus,
+      sprouterApplied,
+      gardenerApplied,
+      expertApplied,
+      mulchApplied,
+      fertilizerApplied,
+      terrainApplied,
+      soilBonus,
+      finalSoilQuality,
+      soilReduction,
+      fertilizerReduction,
+      remainingAfterModifiers,
+      modifierYieldBonus,
+      finalYieldBonus,
+      ready,
+      harvest: Boolean(slot.harvest && ready),
+      statusLabel: ready ? "Prête" : `${remainingAfterModifiers} semaine(s) restante(s)`,
+      skillLabel: skill?.label ?? "Survival",
+      skillRankLabel: skill?.rankLabel ?? getRankLabel(0),
+      canRemove: Boolean(slot.bonus)
+    };
+  });
+}
+
+function getGardenModifierSummary(state, plantedEntries) {
+  const modifiers = state.modifiers ?? createDefaultGardenModifiers();
+  const sprouterTargets = modifiers.sprouterAll
+    ? plantedEntries.length
+    : plantedEntries.filter((slot) => slot.sprouter).length;
+  const gardenerTargets = plantedEntries.filter((slot) => slot.gardener).length;
+  const expertTargets = plantedEntries.filter((slot) => slot.expert).length;
+  const mulchTargets = plantedEntries.filter((slot) => slot.mulch).length;
+  const fertilizerTargets = plantedEntries.filter((slot) => slot.fertilizer).length;
+  const terrainTargets = plantedEntries.filter((slot) => slot.terrain).length;
+  const sprouterCostPRQ = sprouterTargets > 0 ? Math.max(0, modifiers.sprouterCount) : 0;
+  const mulchCostPRQ = Math.max(0, modifiers.mulchCount);
+  const fertilizerCostPRQ = Math.max(0, modifiers.fertilizerCount);
+  const terrainCostPRQ = Math.max(0, modifiers.terrainCount);
+  const moneyCost = (mulchCostPRQ * 200) + (terrainCostPRQ * 300);
+  const costPRQ = sprouterCostPRQ + mulchCostPRQ + fertilizerCostPRQ + terrainCostPRQ;
+
+  return {
+    sprouterTargets,
+    gardenerTargets,
+    expertTargets,
+    mulchTargets,
+    fertilizerTargets,
+    terrainTargets,
+    sprouterCostPRQ,
+    mulchCostPRQ,
+    fertilizerCostPRQ,
+    terrainCostPRQ,
+    costPRQ,
+    costLabel: formatPRQ(costPRQ),
+    moneyCost,
+    moneyCostLabel: formatMoney(moneyCost),
+    limits: [
+      { key: "gardener", label: "Gardener", count: modifiers.gardenerCount, affected: gardenerTargets, capacity: modifiers.gardenerCount * 4 },
+      { key: "expert", label: "Expert Botanist", count: modifiers.expertCount, affected: expertTargets, capacity: modifiers.expertCount * 6 },
+      { key: "mulch", label: "Mulch", count: modifiers.mulchCount, affected: mulchTargets, capacity: modifiers.mulchCount * 4 },
+      { key: "fertilizer", label: "Fertilizer", count: modifiers.fertilizerCount, affected: fertilizerTargets, capacity: modifiers.fertilizerCount * 4 },
+      { key: "terrain", label: "Terrain Soils", count: modifiers.terrainCount, affected: terrainTargets, capacity: modifiers.terrainCount * 4 }
+    ]
+  };
+}
+
+function getGardeningRequirementErrors(actor, context) {
+  const errors = [];
+  if (!actor) errors.push("Choisis un Trainer avant de faire l'Agriculture.");
+  if (!(actor?.isOwner || game.user?.isGM)) errors.push("Seul le propriétaire ou un MJ peut confirmer l'Agriculture.");
+  if (context.plantedEntries.length === 0) errors.push("Ajoute au moins une plante ou un objet planté.");
+  if (context.remainingBefore < context.costPRQ) errors.push(`PR insuffisants: ${formatPRQ(context.costPRQ)} requis.`);
+  if (getMoney(actor) < context.moneyCost) errors.push(`Argent insuffisant: ${formatMoney(context.moneyCost)} requis.`);
+  if (context.modifierSummary.sprouterTargets > 0 && context.modifierSummary.sprouterCostPRQ <= 0) {
+    errors.push("Sprouter cible des plantations, mais aucun Sprouter utilisé n'est indiqué.");
+  }
+  for (const limit of context.modifierSummary.limits) {
+    if (limit.affected > limit.capacity) {
+      errors.push(`${limit.label}: ${limit.affected} plantation(s) ciblée(s), maximum ${limit.capacity}.`);
+    }
+  }
+  return errors;
+}
+
+async function rollGardenHarvest(actor, gardening, slot) {
+  const skill = gardening.skill ?? getSkillRank(actor, "survival");
+  const natural = getNaturalSpecialtyBonus(gardening.naturalSpecialty, slot);
+  const rollBonus = natural.rollBonus;
+  const yieldBonus = Math.max(0, slot.finalYieldBonus + natural.yieldBonus);
+  const formula = buildGardenHarvestFormula(skill, slot.finalSoilQuality, rollBonus, gardening.harvestRollUsesSkillDice);
+  const roll = await new Roll(formula).evaluate({ async: true });
+  const total = Math.trunc(Number(roll.total) || 0);
+  const resultLabel = getGardenHarvestResultLabel(total);
+  const quantityFormula = getGardenQuantityFormula(total, yieldBonus);
+  const freeReplantThreshold = Math.max(1, Math.trunc(Number(gardening.freeReplantThreshold) || 8));
+  const freeReplantAvailable = total >= freeReplantThreshold;
+
+  return {
+    slotId: slot.id,
+    plantName: slot.name,
+    type: slot.type,
+    typeLabel: slot.typeLabel,
+    tier: slot.tier,
+    tierLabel: slot.tierLabel,
+    soilQuality: slot.finalSoilQuality,
+    yieldBonus,
+    skillKey: "survival",
+    skillLabel: skill.label,
+    skillRankLabel: skill.rankLabel,
+    formula,
+    total,
+    resultLabel,
+    quantityFormula,
+    quantityRolled: false,
+    quantity: null,
+    naturalSpecialtyApplied: natural.applied,
+    naturalSpecialtyLabel: natural.label,
+    freeReplantAvailable,
+    freeReplantThreshold,
+    freeReplantLabel: freeReplantAvailable
+      ? "Reprise gratuite disponible; Soil Quality repasse à 0 après récolte."
+      : "Pas de reprise gratuite."
+  };
+}
+
+function buildGardenHarvestFormula(skill, soilQuality, rollBonus, usesSkillDice) {
+  const soil = Math.max(0, Math.trunc(Number(soilQuality) || 0));
+  const bonus = Math.trunc(Number(rollBonus) || 0);
+  if (usesSkillDice) {
+    const diceCount = Math.max(0, Math.trunc(Number(skill?.diceCount) || 0));
+    const skillPart = diceCount > 0 ? `${diceCount}d6` : "0";
+    return `1d6 + ${skillPart} + ${soil} + 2 + ${bonus}`;
+  }
+  const rank = Math.max(0, Math.trunc(Number(skill?.rank) || 0));
+  return `1d6 + ${rank} + ${soil} + 2 + ${bonus}`;
+}
+
+function getGardenHarvestResultLabel(total) {
+  if (total <= 7) return "Mauvaise Récolte";
+  if (total <= 10) return "Correct";
+  if (total <= 13) return "Bonne Récolte";
+  if (total <= 16) return "Excellente Récolte";
+  if (total <= 29) return "Exceptionnelle Récolte";
+  return "Récolte Parfaite";
+}
+
+function getGardenQuantityFormula(total, yieldBonus) {
+  const bonus = Math.max(0, Math.trunc(Number(yieldBonus) || 0));
+  if (total <= 7) return `1 + ${bonus}`;
+  if (total <= 10) return `1d3 + ${bonus}`;
+  if (total <= 13) return `1d4 + ${bonus}`;
+  if (total <= 16) return `1d6 + 1 + ${bonus}`;
+  if (total <= 29) return `1d10 + 2 + ${bonus}`;
+  return `2d6 + 3 + ${bonus}`;
+}
+
+function getNaturalSpecialtyBonus(natural, slot) {
+  if (!natural?.enabled) return { applied: false, rollBonus: 0, yieldBonus: 0, label: "" };
+  const typeMatches = normalizeGardenPlantType(natural.type) === slot.type;
+  if (!typeMatches) return { applied: false, rollBonus: 0, yieldBonus: 0, label: "Natural Specialty sans correspondance." };
+  const exactName = normalizeSearchText(natural.name);
+  const nameMatches = exactName && normalizeSearchText(slot.name) === exactName;
+  const yieldBonus = 3 + (nameMatches ? 3 : 0);
+  return {
+    applied: true,
+    rollBonus: 3,
+    yieldBonus,
+    label: nameMatches ? "Natural Specialty type + nom exact: +3 jet, +6 Yield." : "Natural Specialty type: +3 jet, +3 Yield."
+  };
+}
+
+function getBaseGrowthWeeks(plantType, tier) {
+  if (plantType === "apricorn") return 2;
+  const value = Number(tier) || 1;
+  if (value === 1 || value === 2) return 1;
+  if (value === 3) return 2;
+  return 4;
+}
+
+function normalizeGardenPlantType(value, fallback = GARDEN_PLANT_TYPES[0]?.key ?? "berry") {
+  const key = stringValue(value);
+  if (GARDEN_PLANT_TYPES.some((type) => type.key === key)) return key;
+  if (GARDEN_PLANT_TYPES.some((type) => type.key === fallback)) return fallback;
+  return GARDEN_PLANT_TYPES[0]?.key ?? "berry";
+}
+
+function normalizeGardenTier(value, fallback = GARDEN_TIERS[0]?.key ?? "1") {
+  const key = stringValue(value);
+  if (GARDEN_TIERS.some((tier) => tier.key === key)) return key;
+  if (GARDEN_TIERS.some((tier) => tier.key === fallback)) return fallback;
+  return GARDEN_TIERS[0]?.key ?? "1";
+}
+
+function normalizeGardenHarvestSkillMode(value) {
+  return stringValue(value) === "best" ? "best" : "survival";
+}
+
+function getGardenPlantTypeLabel(key) {
+  return GARDEN_PLANT_TYPES.find((type) => type.key === key)?.label ?? key;
+}
+
+function getGardenTierLabel(key) {
+  return GARDEN_TIERS.find((tier) => tier.key === key)?.label ?? `Tier ${key}`;
 }
 
 function normalizeWeaponCategoryKey(value, fallback = WEAPON_CRAFTING_CATEGORIES[0]?.key ?? "") {
@@ -2200,6 +2862,39 @@ function readPositiveCount(value, fallback = 1) {
   const number = Math.trunc(Number(value));
   if (Number.isFinite(number) && number > 0) return number;
   return Math.max(1, Math.trunc(Number(fallback) || 1));
+}
+
+function readNonNegativeCount(value, fallback = 0) {
+  if (value === "") return Math.max(0, Math.trunc(Number(fallback) || 0));
+  const number = Math.trunc(Number(value));
+  if (Number.isFinite(number) && number >= 0) return number;
+  return Math.max(0, Math.trunc(Number(fallback) || 0));
+}
+
+function readOptionalNonNegativeCount(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return "";
+  return readNonNegativeCount(value);
+}
+
+function clampNumber(value, min, max) {
+  const number = Math.trunc(Number(value));
+  if (!Number.isFinite(number)) return min;
+  return Math.min(max, Math.max(min, number));
+}
+
+function capitalize(value) {
+  const text = String(value ?? "");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function createLocalId(prefix = "id") {
+  if (globalThis.foundry?.utils?.randomID) return `${prefix}-${foundry.utils.randomID(8)}`;
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function cssEscape(value) {
+  if (globalThis.CSS?.escape) return CSS.escape(String(value));
+  return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 function getActorByKey(actorKey) {

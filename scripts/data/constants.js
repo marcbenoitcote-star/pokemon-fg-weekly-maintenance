@@ -43,6 +43,23 @@ export const ACTIVITY_COSTS_PRQ = {
   gardenHarvest: 1
 };
 
+export const GARDEN_BASE_SLOTS = 6;
+
+export const GARDEN_PLANT_TYPES = [
+  { key: "berry", label: "Berry" },
+  { key: "flower", label: "Flower" },
+  { key: "herb", label: "Herb" },
+  { key: "mushroom", label: "Mushroom" },
+  { key: "apricorn", label: "Apricorn" }
+];
+
+export const GARDEN_TIERS = [
+  { key: "1", label: "Tier 1", value: 1 },
+  { key: "2", label: "Tier 2", value: 2 },
+  { key: "3", label: "Tier 3", value: 3 },
+  { key: "4", label: "Tier 4", value: 4 }
+];
+
 export const CRAFTING_JOURNAL_UUID = "Compendium.ptu.journals.JournalEntry.klJMCQbOAWq5CJ9r";
 
 export const CRAFTING_TYPES = [
@@ -154,7 +171,7 @@ export const ACTIVITY_OPTIONS = [
     icon: "fas fa-seedling",
     title: "Agriculture / Jardinage",
     description: "Planting Stage, Growth Stage, Harvest Stage et Yield Rolls.",
-    enabled: false
+    enabled: true
   }
 ];
 
