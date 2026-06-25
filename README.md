@@ -37,7 +37,7 @@ Cette version livre l'étape 1 du cahier des charges:
 - Types Fabrication actifs: `Objet normal` à 1 PRQ par objet, `Arme` à 4 PRQ par arme et `Armure` à 4 PRQ par armure.
 - Constructeur `Arme`: base melee/ranged/magic/shield, coûts Pokédollars automatiques, 1 move Tiers 1, 1 move Tiers 2, restrictions two-handed/heavy, surtaxes Musical Weapon, règles PTR `FlatModifier`/`GrantItem`, champ `Effect`, `Keywords` et capacité `Reach`.
 - Activité complète `Agriculture / Jardinage` avec Planting Stage, Growth Stage, Harvest Stage, emplacements bonus, modificateurs agricoles, Natural Specialty et Yield Rolls.
-- Modificateurs Agriculture actifs: Sprouter, Gardener, Expert Botanist, Mulch, Fertilizer et Terrain Soils avec limites, coûts PR et coûts Pokédollars.
+- Modificateurs Agriculture actifs: Sprouter, Gardener, Expert Botanist, Mulch, Fertilizer, Fertile Soil et Terrain Soils avec limites, coûts PR et coûts Pokédollars.
 - Harvest Stage Agriculture: jet `1d6 + Skill + Soil + 2 + bonus`, option MJ dés de skill ou rang numérique, seuil configurable de reprise gratuite et bouton de quantité récoltée.
 - Macro dédiée `game.pfgMaintenance.openWeaponCrafting();` pour ouvrir directement la Fabrication d'arme.
 - Services séparés pour PR, calendrier, chat, items et Pokémon afin de recevoir les étapes suivantes.
@@ -154,7 +154,8 @@ Par défaut, les gains d'argent ne sont jamais appliqués automatiquement. Le bo
 - Tester `Gardener X`: X=1 ne doit pas permettre de cibler plus de 4 plantations.
 - Tester `Expert Botanist X`: X=1 ne doit pas permettre de cibler plus de 6 plantations.
 - Tester `Mulch X`: X=1 doit coûter `1/4 PR` et `200₽`, et ne pas permettre plus de 4 plantations ciblées.
-- Tester `Fertilizer X`: X=1 doit coûter `1/4 PR` et réduire d'une semaine jusqu'à 4 plantations ciblées.
+- Tester `Fertilizer X`: X=1 doit coûter `1/4 PR` et `200₽`, puis réduire d'une semaine jusqu'à 4 plantations ciblées.
+- Tester `Fertile Soil X`: X=1 doit coûter `1/4 PR` et `1000₽`, puis ajouter +3 Soil Quality et +3 Yield jusqu'à 4 plantations ciblées.
 - Tester `Terrain Soils X`: X=1 doit coûter `1/4 PR` et `300₽`, et ajouter +4 Yield aux plantations ciblées.
 - Aller au Growth Stage: les plantes non matures doivent afficher semaines restantes, Soil final et Yield final; les plantes prêtes doivent être marquées `Prête`.
 - Aller au Harvest Stage avec une plante prête: sélectionner la récolte, confirmer, puis vérifier le coût `1/4 PR` par plantation récoltée.

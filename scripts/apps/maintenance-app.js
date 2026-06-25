@@ -560,7 +560,7 @@ export class PfgMaintenanceApp extends Application {
     if (form.querySelector?.("[name='gardenNaturalSpecialtyEnabled']")) gardening.naturalSpecialty.enabled = data.has("gardenNaturalSpecialtyEnabled");
     if (form.querySelector?.("[name='gardenSprouterAll']")) gardening.modifiers.sprouterAll = data.has("gardenSprouterAll");
 
-    for (const key of ["sprouter", "gardener", "expert", "mulch", "fertilizer", "terrain"]) {
+    for (const key of ["sprouter", "gardener", "expert", "mulch", "fertilizer", "fertile", "terrain"]) {
       const fieldName = `garden${capitalize(key)}Count`;
       if (data.has(fieldName)) gardening.modifiers[`${key}Count`] = readNonNegativeCount(data.get(fieldName));
     }
@@ -576,7 +576,7 @@ export class PfgMaintenanceApp extends Application {
       if (data.has(`gardenSlotReason:${id}`)) slot.reason = stringValue(data.get(`gardenSlotReason:${id}`));
       if (data.has(`gardenSlotNotes:${id}`)) slot.notes = stringValue(data.get(`gardenSlotNotes:${id}`));
 
-      for (const key of ["FreeReplant", "Sprouter", "Gardener", "Expert", "Mulch", "Fertilizer", "Terrain", "Harvest"]) {
+      for (const key of ["FreeReplant", "Sprouter", "Gardener", "Expert", "Mulch", "Fertilizer", "Fertile", "Terrain", "Harvest"]) {
         const fieldName = `gardenSlot${key}:${id}`;
         if (form.querySelector?.(`[name='${cssEscape(fieldName)}']`)) {
           const stateKey = key === "FreeReplant" ? "freeReplant" : key.charAt(0).toLowerCase() + key.slice(1);
@@ -2048,6 +2048,7 @@ function createDefaultGardenModifiers() {
     expertCount: 0,
     mulchCount: 0,
     fertilizerCount: 0,
+    fertileCount: 0,
     terrainCount: 0
   };
 }
@@ -2080,6 +2081,7 @@ function createGardenSlot(index = 0, bonus = false) {
     expert: false,
     mulch: false,
     fertilizer: false,
+    fertile: false,
     terrain: false,
     harvest: true
   };
@@ -2103,11 +2105,13 @@ function calculateGardenEntries(state, skill) {
     const expertApplied = isPlanted && Boolean(slot.expert);
     const mulchApplied = isPlanted && Boolean(slot.mulch);
     const fertilizerApplied = isPlanted && Boolean(slot.fertilizer);
+    const fertileApplied = isPlanted && Boolean(slot.fertile);
     const terrainApplied = isPlanted && Boolean(slot.terrain);
     const soilBonus = (sprouterApplied ? 2 * Math.max(0, modifiers.sprouterCount) : 0)
       + (gardenerApplied ? 1 : 0)
       + (expertApplied ? 2 : 0)
-      + (mulchApplied ? 1 : 0);
+      + (mulchApplied ? 1 : 0)
+      + (fertileApplied ? 3 : 0);
     const finalSoilQuality = clampNumber(currentSoilQuality + soilBonus, 0, 6);
     const soilReduction = Math.floor(finalSoilQuality / 2);
     const fertilizerReduction = fertilizerApplied ? 1 : 0;
@@ -2115,6 +2119,7 @@ function calculateGardenEntries(state, skill) {
     const modifierYieldBonus = (gardenerApplied ? 1 : 0)
       + (expertApplied ? 2 : 0)
       + (mulchApplied ? 1 : 0)
+      + (fertileApplied ? 3 : 0)
       + (terrainApplied ? 4 : 0);
     const finalYieldBonus = Math.max(0, currentYieldBonus + modifierYieldBonus);
     const ready = Boolean(isPlanted && remainingAfterModifiers <= 0);
@@ -2139,6 +2144,7 @@ function calculateGardenEntries(state, skill) {
       expertApplied,
       mulchApplied,
       fertilizerApplied,
+      fertileApplied,
       terrainApplied,
       soilBonus,
       finalSoilQuality,
@@ -2166,13 +2172,15 @@ function getGardenModifierSummary(state, plantedEntries) {
   const expertTargets = plantedEntries.filter((slot) => slot.expert).length;
   const mulchTargets = plantedEntries.filter((slot) => slot.mulch).length;
   const fertilizerTargets = plantedEntries.filter((slot) => slot.fertilizer).length;
+  const fertileTargets = plantedEntries.filter((slot) => slot.fertile).length;
   const terrainTargets = plantedEntries.filter((slot) => slot.terrain).length;
   const sprouterCostPRQ = sprouterTargets > 0 ? Math.max(0, modifiers.sprouterCount) : 0;
   const mulchCostPRQ = Math.max(0, modifiers.mulchCount);
   const fertilizerCostPRQ = Math.max(0, modifiers.fertilizerCount);
+  const fertileCostPRQ = Math.max(0, modifiers.fertileCount);
   const terrainCostPRQ = Math.max(0, modifiers.terrainCount);
-  const moneyCost = (mulchCostPRQ * 200) + (terrainCostPRQ * 300);
-  const costPRQ = sprouterCostPRQ + mulchCostPRQ + fertilizerCostPRQ + terrainCostPRQ;
+  const moneyCost = (mulchCostPRQ * 200) + (fertilizerCostPRQ * 200) + (fertileCostPRQ * 1000) + (terrainCostPRQ * 300);
+  const costPRQ = sprouterCostPRQ + mulchCostPRQ + fertilizerCostPRQ + fertileCostPRQ + terrainCostPRQ;
 
   return {
     sprouterTargets,
@@ -2180,10 +2188,12 @@ function getGardenModifierSummary(state, plantedEntries) {
     expertTargets,
     mulchTargets,
     fertilizerTargets,
+    fertileTargets,
     terrainTargets,
     sprouterCostPRQ,
     mulchCostPRQ,
     fertilizerCostPRQ,
+    fertileCostPRQ,
     terrainCostPRQ,
     costPRQ,
     costLabel: formatPRQ(costPRQ),
@@ -2194,6 +2204,7 @@ function getGardenModifierSummary(state, plantedEntries) {
       { key: "expert", label: "Expert Botanist", count: modifiers.expertCount, affected: expertTargets, capacity: modifiers.expertCount * 6 },
       { key: "mulch", label: "Mulch", count: modifiers.mulchCount, affected: mulchTargets, capacity: modifiers.mulchCount * 4 },
       { key: "fertilizer", label: "Fertilizer", count: modifiers.fertilizerCount, affected: fertilizerTargets, capacity: modifiers.fertilizerCount * 4 },
+      { key: "fertile", label: "Fertile Soil", count: modifiers.fertileCount, affected: fertileTargets, capacity: modifiers.fertileCount * 4 },
       { key: "terrain", label: "Terrain Soils", count: modifiers.terrainCount, affected: terrainTargets, capacity: modifiers.terrainCount * 4 }
     ]
   };

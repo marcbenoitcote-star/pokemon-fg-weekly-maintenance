@@ -714,7 +714,12 @@
           <label>
             Fertilizer X
             <input type="number" name="gardenFertilizerCount" min="0" step="1" value="{{gardening.modifiers.fertilizerCount}}" {{#if gardening.locked}}disabled{{/if}}>
-            <small>1/4 PR par X; -1 semaine à 4 plantations.</small>
+            <small>200₽ et 1/4 PR par X; -1 semaine à 4 plantations.</small>
+          </label>
+          <label>
+            Fertile Soil X
+            <input type="number" name="gardenFertileCount" min="0" step="1" value="{{gardening.modifiers.fertileCount}}" {{#if gardening.locked}}disabled{{/if}}>
+            <small>1000₽ et 1/4 PR par X; +3 Soil, +3 Yield à 4 plantations.</small>
           </label>
           <label>
             Terrain Soils X
@@ -788,6 +793,7 @@
                 <label class="pfg-check"><input type="checkbox" name="gardenSlotExpert:{{id}}" {{#if expert}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Expert</label>
                 <label class="pfg-check"><input type="checkbox" name="gardenSlotMulch:{{id}}" {{#if mulch}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Mulch</label>
                 <label class="pfg-check"><input type="checkbox" name="gardenSlotFertilizer:{{id}}" {{#if fertilizer}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Fertilizer</label>
+                <label class="pfg-check"><input type="checkbox" name="gardenSlotFertile:{{id}}" {{#if fertile}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Fertile Soil</label>
                 <label class="pfg-check"><input type="checkbox" name="gardenSlotTerrain:{{id}}" {{#if terrain}}checked{{/if}} {{#if ../gardening.locked}}disabled{{/if}}> Terrain</label>
               </div>
 
