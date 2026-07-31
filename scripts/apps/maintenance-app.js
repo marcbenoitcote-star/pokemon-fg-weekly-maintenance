@@ -49,6 +49,9 @@ import {
 import { getOwnedPokemonForTrainer } from "../services/pokemon-service.js";
 import { postActivitySummary, postFinalSummary, postRollCard } from "../services/chat-service.js";
 
+const ApplicationV1 = foundry.appv1?.api?.Application ?? globalThis.Application;
+const DialogV1 = foundry.appv1?.api?.Dialog ?? globalThis.Dialog;
+
 const STEPS = [
   { key: "trainer", label: "Trainer" },
   { key: "pr", label: "PR" },
@@ -57,7 +60,7 @@ const STEPS = [
   { key: "summary", label: "Résumé" }
 ];
 
-export class PfgMaintenanceApp extends Application {
+export class PfgMaintenanceApp extends ApplicationV1 {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "pfg-maintenance-app",
@@ -1127,7 +1130,7 @@ export class PfgMaintenanceApp extends Application {
     let totalGain = 0;
 
     for (let index = 0; index < count; index += 1) {
-      const roll = await new Roll("1d6").evaluate({ async: true });
+      const roll = await new Roll("1d6").evaluate();
       const die = Math.trunc(Number(roll.total) || 0);
       const gain = die * work.rate;
       totalGain += gain;
@@ -1706,7 +1709,7 @@ export class PfgMaintenanceApp extends Application {
       return;
     }
 
-    const roll = await new Roll(entry.quantityFormula).evaluate({ async: true });
+    const roll = await new Roll(entry.quantityFormula).evaluate();
     entry.quantity = Math.max(0, Math.trunc(Number(roll.total) || 0));
     entry.quantityRolled = true;
     entry.quantityRollTotal = entry.quantity;
@@ -2234,7 +2237,7 @@ async function rollGardenHarvest(actor, gardening, slot) {
   const rollBonus = natural.rollBonus;
   const yieldBonus = Math.max(0, slot.finalYieldBonus + natural.yieldBonus);
   const formula = buildGardenHarvestFormula(skill, slot.finalSoilQuality, rollBonus, gardening.harvestRollUsesSkillDice);
-  const roll = await new Roll(formula).evaluate({ async: true });
+  const roll = await new Roll(formula).evaluate();
   const total = Math.trunc(Number(roll.total) || 0);
   const resultLabel = getGardenHarvestResultLabel(total);
   const quantityFormula = getGardenQuantityFormula(total, yieldBonus);
@@ -2943,8 +2946,8 @@ function sanitizeActivity(activity) {
 }
 
 async function confirmDialog(title, content) {
-  if (globalThis.Dialog?.confirm) {
-    return Dialog.confirm({
+  if (DialogV1?.confirm) {
+    return DialogV1.confirm({
       title,
       content,
       yes: () => true,

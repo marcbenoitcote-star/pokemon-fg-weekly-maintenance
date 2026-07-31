@@ -1,7 +1,7 @@
 import { TEMPLATES } from "../data/constants.js";
 
 export async function postActivitySummary(data) {
-  const content = await renderTemplate(TEMPLATES.chatSummary, {
+  const content = await foundry.applications.handlebars.renderTemplate(TEMPLATES.chatSummary, {
     ...data,
     mode: "activity"
   });
@@ -12,7 +12,7 @@ export async function postActivitySummary(data) {
 }
 
 export async function postFinalSummary(data) {
-  const content = await renderTemplate(TEMPLATES.chatSummary, {
+  const content = await foundry.applications.handlebars.renderTemplate(TEMPLATES.chatSummary, {
     ...data,
     mode: "final"
   });
@@ -23,7 +23,7 @@ export async function postFinalSummary(data) {
 }
 
 export async function postRollCard(data) {
-  const content = await renderTemplate(TEMPLATES.chatRollCard, data);
+  const content = await foundry.applications.handlebars.renderTemplate(TEMPLATES.chatRollCard, data);
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: data.actor }),
     content,

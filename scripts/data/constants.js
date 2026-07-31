@@ -60,7 +60,7 @@ export const GARDEN_TIERS = [
   { key: "4", label: "Tier 4", value: 4 }
 ];
 
-export const CRAFTING_JOURNAL_UUID = "Compendium.ptu.journals.JournalEntry.klJMCQbOAWq5CJ9r";
+export const CRAFTING_JOURNAL_UUID = "Compendium.ptu.journals.JournalEntry.NuifZmyV41EwsMns";
 
 export const CRAFTING_TYPES = [
   {
@@ -204,8 +204,8 @@ export const POKEMON_HARVEST_OPTIONS = [
     category: "Récolte simple",
     costPRQ: ACTIVITY_COSTS_PRQ.simplePokemonHarvest,
     resultType: HARVEST_RESULT_TYPES.rollTable,
-    resultUuid: "Compendium.ptu.rolltables.RollTable.Jz0g9IlGs00xj9u4",
-    resultLabel: "Table Mushroom Harvest"
+    resultUuid: "Compendium.ptu.rolltables.RollTable.diOJAiujB4Kpss3K",
+    resultLabel: "Table Foraging"
   },
   {
     key: "dreamMist",
@@ -258,8 +258,8 @@ export const POKEMON_HARVEST_OPTIONS = [
     category: "Récolte professionnelle",
     costPRQ: ACTIVITY_COSTS_PRQ.professionalPokemonHarvest,
     resultType: HARVEST_RESULT_TYPES.rollTable,
-    resultUuid: "Compendium.ptu.rolltables.RollTable.nExmlR2WmxPcWdKY",
-    resultLabel: "Table Fossil Research",
+    resultUuid: "Compendium.ptu.rolltables.RollTable.hvZUPAF9B8WN7Tjk",
+    resultLabel: "Table Fossils",
     skipPokemonRequirement: true,
     requiresPaleontologyConfirmation: true
   },
@@ -312,6 +312,7 @@ export const POKEMON_HARVEST_OPTIONS = [
 ];
 
 export const REACH_CAPABILITY_UUID = "Compendium.ptu.capabilities.Item.o7NdOFXqtOAIFv6x";
+const CORE_WEAPON_MOVE_IDS = new Set(["wbvuoi8cQC5qvBJX", "WfesNtj171NVSa7T"]);
 
 export const WEAPON_CRAFTING_CATEGORIES = [
   {
@@ -432,7 +433,7 @@ export const WEAPON_CRAFTING_CATEGORIES = [
         cost: 3500,
         shield: "light",
         evasionBonus: 1,
-        effectUuid: "Compendium.ptu.effects.Item.VEJwFmRF7al1iVH9",
+        effectUuid: "Compendium.pokemon-fg-compendia.effects.Item.VEJwFmRF7al1iVH9",
         actionDescription: "Action standard: +4 Evasion et +10 Damage Reduction jusqu'au prochain tour, puis Ralenti Status Affliction pendant le bonus."
       },
       {
@@ -441,7 +442,7 @@ export const WEAPON_CRAFTING_CATEGORIES = [
         cost: 7000,
         shield: "heavy",
         evasionBonus: 2,
-        effectUuid: "Compendium.ptu.effects.Item.5OY0BP3rdka8VYbJ",
+        effectUuid: "Compendium.pokemon-fg-compendia.effects.Item.5OY0BP3rdka8VYbJ",
         actionDescription: "Action standard: +6 Evasion et +15 Damage Reduction jusqu'au prochain tour, puis Stuck Status Affliction pendant le bonus."
       }
     ],
@@ -470,7 +471,13 @@ function weaponMove(key, label, uuids, options = {}) {
   return {
     key,
     label,
-    uuids: Array.isArray(uuids) ? uuids : [uuids],
+    uuids: (Array.isArray(uuids) ? uuids : [uuids]).map(remapWeaponMoveUuid),
     ...options
   };
+}
+
+function remapWeaponMoveUuid(uuid) {
+  const match = /^Compendium\.ptu\.moves\.Item\.([A-Za-z0-9]+)$/.exec(String(uuid ?? ""));
+  if (!match || CORE_WEAPON_MOVE_IDS.has(match[1])) return uuid;
+  return `Compendium.pokemon-fg-compendia.moves.Item.${match[1]}`;
 }
