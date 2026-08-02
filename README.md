@@ -1,6 +1,10 @@
 # Pokémon FG - Entretien Hebdomadaire
 
-Module Foundry VTT V13 pour Pokémon Tabletop Reunited (`ptu`). Il assiste les semaines d'entretien des joueurs Pokémon FG.
+Module Foundry VTT V13/V14 pour Pokémon Tabletop Reunited (`ptu`). Il assiste les semaines d'entretien des joueurs Pokémon FG.
+
+La version `0.2.8` adapte l'application aux API Foundry V14 et au système
+officiel `righthandofvecna/fvtt-ptr` `4.4.3.37`. Elle répare également les UUID
+du journal de fabrication, des tables de récolte et des Moves/Effects FG.
 
 ## Etat du module
 
@@ -67,13 +71,13 @@ https://github.com/marcbenoitcote-star/pokemon-fg-weekly-maintenance/releases/la
 
 3. Activer le module dans le monde PTR.
 
-Simple Calendar Reborn est declare comme module relie dans le manifest:
+Simple Calendar Reborn est déclaré comme module recommandé dans le manifeste :
 
 ```text
 https://github.com/Fireblight-Studios/foundryvtt-simple-calendar/releases/latest/download/module.json
 ```
 
-Si son API `SimpleCalendar.api` est disponible, le module lit `currentDateTimeDisplay()`, `currentDateTime()` et `timestamp()` pour afficher la date actuelle et fabriquer une cle de semaine automatiquement. Sinon, l'application affiche les champs manuels `Nom de la semaine`, `Date RP` et `Evenement`.
+Si son API `SimpleCalendar.api` est disponible, le module lit `currentDateTimeDisplay()`, `currentDateTime()` et `timestamp()` pour afficher la date actuelle et fabriquer une clé de semaine automatiquement. Sinon, l'application affiche les champs manuels `Nom de la semaine`, `Date RP` et `Événement`; Simple Calendar n'empêche donc plus l'activation du module.
 
 ## Utilisation
 

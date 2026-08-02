@@ -8,7 +8,7 @@ import * as ChatService from "./services/chat-service.js";
 
 Hooks.once("init", async () => {
   registerSettings();
-  await loadTemplates(Object.values(TEMPLATES));
+  await foundry.applications.handlebars.loadTemplates(Object.values(TEMPLATES));
 });
 
 Hooks.once("ready", () => {
@@ -88,7 +88,7 @@ function registerSettings() {
 }
 
 function exposeApi() {
-  game.pfgMaintenance = {
+  const api = {
     open: (options = {}) => new PfgMaintenanceApp(options).render(true),
     openWeaponCrafting: (options = {}) => new PfgMaintenanceApp({ ...options, startWeaponCrafting: true }).render(true),
     app: PfgMaintenanceApp,
@@ -98,6 +98,9 @@ function exposeApi() {
     pokemon: PokemonService,
     chat: ChatService
   };
+  game.pfgMaintenance = api;
+  const module = game.modules.get(MODULE_ID);
+  if (module) module.api = api;
 
   if (game.settings.get(MODULE_ID, SETTINGS.debug)) {
     console.log(`${MODULE_ID} | API exposee sous game.pfgMaintenance.`);
